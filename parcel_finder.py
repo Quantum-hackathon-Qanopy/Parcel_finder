@@ -13,7 +13,7 @@ class FindParcels:
     def fit(self, parcel_amount):
       self.project_profile = self.feature_stack.reduceRegion(
           reducer=ee.Reducer.mean(),
-          geometry=my_project,
+          geometry=self.geometry,
           scale=30,
           maxPixels=1e9
       ).getInfo()
@@ -49,3 +49,4 @@ class FindParcels:
 
           
           similarity_score = ee.Number(100).subtract(total_difference.divide(len(self.bandNames)).multiply(100))
+          return cell.set('similarity_score', similarity_score)  
