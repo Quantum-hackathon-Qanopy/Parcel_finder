@@ -19,7 +19,7 @@ class FindParcels:
       ).getInfo()
 
 
-      grid = search_region.coveringGrid(proj=ee.Projection('EPSG:4326'), scale=400)
+      grid = self.search_region.coveringGrid(proj=ee.Projection('EPSG:4326'), scale=400)
       grid_with_data = feature_stack.reduceRegions(
                                       collection=grid,
                                       reducer=ee.Reducer.mean(),
