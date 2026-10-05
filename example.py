@@ -33,9 +33,9 @@ parcel_finder = FindParcels(coords)
 
 parcel_finder.load_features(feature_stack, max_diffs)
 
-parcel_finder.fit(3)
+parcel_finder.fit(200)
 
-parcel_finder.parcels
+print(parcel_finder.parcels.size().getInfo())
 
 
 
