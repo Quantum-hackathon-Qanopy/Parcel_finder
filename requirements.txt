@@ -4,3 +4,8 @@ geopandas
 pyogrio
 numpy
 matplotlib
+scipy
+folium
+qiskit
+qiskit-aer
+qiskit-ibm-runtime

@@ -175,13 +175,26 @@ High Moran's I means clustering gives redundant evidence, so diversity should co
 - Which blockchain hosts the certificate, and what is stored on-chain versus off-chain.
 - The first real test project, with its start date, boundary file and claimed baseline.
 
+## Repository layout
+
+```
+data/       input files (project boundary KML)
+src/        all code: finder, QAOA, selection, maps
+outputs/    generated CSV, JSON and HTML files (not tracked by git)
+```
+
+Run every script from the repository root, e.g. `python src/example.py`.
+
 ## Current status
 
 | File | Purpose |
 | --- | --- |
-| `parcel_finder.py` | `FindParcels` class: builds the search ring, scores grid cells against the project's own cells, selects well-spaced candidates |
-| `example.py` | Runs `FindParcels` on a KML boundary, prints a quality report, writes `candidates.csv`, `project_cells.csv` and `project_profile.json` |
-| `map_view.py` | Builds the interactive map (`demo_map.html`) |
+| `src/parcel_finder.py` | `FindParcels` class: builds the search ring, scores grid cells against the project's own cells, selects well-spaced candidates |
+| `src/example.py` | Runs `FindParcels` on a KML boundary, prints a quality report, writes `candidates.csv`, `project_cells.csv` and `project_profile.json` |
+| `src/map_view.py` | Builds the interactive map (`demo_map.html`) |
+| `src/select_parcels.py` | Builds the QUBO for choosing K parcels from the candidates, solves it classically and (optionally) with QAOA, writes `selected_parcels.csv` and `selected_matches.csv` |
+| `src/qaoa.py` | QAOA solver (Qiskit) used by `select_parcels.py` |
+| `src/selection_map.py` | Draws the selected parcels and their matches on a map (`selection_map.html`) |
 
 The candidate search matches only on information from before the project start year, on deforestation drivers (forest at start, pre-start loss and trend, elevation, slope, distance to forest edge, water and roads), with features scaled by their spread across the pool. Protected areas are excluded. Not yet implemented: the QAOA run itself, snapshot, monitoring, estimation, certificate. The Earth Engine parts were written without being run against Earth Engine; test before relying on them.
 
@@ -193,12 +206,12 @@ Requirements: Python 3, a Google account registered for Earth Engine, and a Goog
 pip install -r requirements.txt
 ```
 
-1. Put the project boundary (a KML file containing one polygon) next to `example.py` and set `KML_FILE` in `example.py`. The farm boundary used in the example is not stored in this repository.
+1. Put the project boundary (a KML file containing one polygon) in `data/` and set `KML_FILE` in `src/example.py`. The farm boundary used in the example is not stored in this repository.
 2. Initialise Earth Engine with your Cloud project ID, for example `ee.Initialize(project='your-project-id')`. The first run of `ee.Authenticate()` opens a browser window to log in.
 3. Run:
 
 ```bash
-python example.py
+python src/example.py
 ```
 
 It prints a short quality report, saves the result files and opens the map in your browser. Earth Engine work runs on Google's servers, so large search areas can take a while or hit usage limits.
@@ -206,7 +219,7 @@ It prints a short quality report, saves the result files and opens the map in yo
 ## Limitations
 
 - **Matching does not see frontier exposure.** Before the start year, forest loss was similar everywhere within 30 km, but after it, loss rose steeply with distance from the project. Matching on pre-start features cannot detect this, so far-away candidates may overstate the baseline loss. A pre-start frontier-exposure feature is planned.
-- **The project start year in `example.py` is a placeholder.** All matching features and the ring test depend on it.
+- **The project start year in `src/example.py` is a placeholder.** All matching features and the ring test depend on it.
 - **Feature caveats.** The roads layer (GRIP4) and protected-area layer are recent snapshots, so for an earlier start year they include information from after the start. Other carbon projects and indigenous land are not excluded.
 - **Estimate, not proof.** Finding that similar land lost more forest than the project is evidence of protection, not proof. Factors that are not matched on could explain part of the difference, so results should be described as estimates.
 - **Alerts are noisy.** They can include fire, degradation and cloud artefacts.

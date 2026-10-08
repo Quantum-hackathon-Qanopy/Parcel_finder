@@ -210,7 +210,7 @@ class FindParcels:
         project = self._cell_features(
             self.geometry.coveringGrid(proj=proj, scale=self.cell_size_m)
             .map(inside_share)
-            .filter(ee.Filter.gte('inside', MIN_INSIDE_SHARE)))
+            .filter(ee.Filter.gte('inside', MIN_INSIDE_SHARE))).map(add_center)
 
         print('  downloading candidate cells...')
         candidates = candidates.getInfo()['features']
@@ -230,6 +230,7 @@ class FindParcels:
         """Choose up to `n_candidates` comparison cells. Results:
         self.candidates     chosen cells (GeoJSON features), best similarity first
         self.project_cells  feature matrix of the project's own cells
+        self.project_lonlat centre (lon, lat) of each of the project's own cells
         self.band_names     feature names (columns of the matrices)
         self.n_eligible     number of eligible candidate cells before selection
         """
@@ -237,6 +238,8 @@ class FindParcels:
         self.band_names = self.features.bandNames().getInfo()
         candidates, project = self._download_cells()
         self.n_eligible = len(candidates)
+        self.project_lonlat = np.array(
+            [[c['properties']['lon'], c['properties']['lat']] for c in project])
 
         def matrix(cells):
             return np.array([[c['properties'][b] for b in self.band_names] for c in cells], float)

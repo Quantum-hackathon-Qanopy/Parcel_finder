@@ -4,11 +4,9 @@ __pycache__/
 .venv/
 venv/
 
-# Generated results (rerun example.py to recreate)
-candidates.csv
-project_cells.csv
-project_profile.json
-demo_map.html
+# Generated results (rerun src/example.py and src/select_parcels.py to recreate)
+outputs/*
+!outputs/.gitkeep
 
 # Local files
 .DS_Store

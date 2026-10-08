@@ -19,20 +19,24 @@ from map_view import build_map
 from parcel_finder import FindParcels
 
 # ---------------------------------------------------------------- settings
+ROOT = Path(__file__).resolve().parent.parent   # repository root
+DATA_DIR = ROOT / 'data'
+OUTPUT_DIR = ROOT / 'outputs'
+OUTPUT_DIR.mkdir(exist_ok=True)
 EE_PROJECT = 'ultrahack-project'     # your Google Cloud project with Earth Engine enabled
-KML_FILE = 'ALGAR_limite_fazenda_pacaja_v2_MS_17012019.shp.kml'
+KML_FILE = DATA_DIR / 'ALGAR_limite_fazenda_pacaja_v2_MS_17012019.shp.kml'
 PROJECT_START_YEAR = 2015            # PLACEHOLDER: replace with the real project start year
-N_CANDIDATES = 100                   # how many parcels to keep
+N_CANDIDATES = 200                   # how many parcels to keep
 CELL_SIZE_M = 2000                   # parcel side length in metres (2000 m = 400 ha)
 BUFFER_M = 10000                     # leakage buffer around the project, in metres
 MIN_SPACING_KM = 6.0                 # minimum distance between parcel centres (0 = off)
 N_NEAREST = 3                        # project cells each candidate is compared with
 RUN_RING_TEST = True                 # print loss rates in rings around the project
 
-CANDIDATES_CSV = 'candidates.csv'
-PROJECT_CELLS_CSV = 'project_cells.csv'
-PROFILE_JSON = 'project_profile.json'
-MAP_HTML = 'demo_map.html'
+CANDIDATES_CSV = OUTPUT_DIR / 'candidates.csv'
+PROJECT_CELLS_CSV = OUTPUT_DIR / 'project_cells.csv'
+PROFILE_JSON = OUTPUT_DIR / 'project_profile.json'
+MAP_HTML = OUTPUT_DIR / 'demo_map.html'
 
 
 # ------------------------------------------------------------------- steps
@@ -98,9 +102,9 @@ def save_results(finder):
 
     with open(PROJECT_CELLS_CSV, 'w', newline='') as fh:
         writer = csv.writer(fh)
-        writer.writerow(['id'] + bands)
-        for i, row in enumerate(finder.project_cells):
-            writer.writerow([i] + row.tolist())
+        writer.writerow(['id', 'lon', 'lat'] + bands)
+        for i, (row, (lon, lat)) in enumerate(zip(finder.project_cells, finder.project_lonlat)):
+            writer.writerow([i, lon, lat] + row.tolist())
 
     with open(PROFILE_JSON, 'w') as fh:
         json.dump({'start_year': PROJECT_START_YEAR, 'bands': bands,
