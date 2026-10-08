@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Generated results (rerun example.py to recreate)
+candidates.csv
+project_cells.csv
+project_profile.json
+demo_map.html
+
+# Local files
+.DS_Store
+.ipynb_checkpoints/

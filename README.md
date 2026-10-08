@@ -53,7 +53,7 @@ flowchart LR
 | --- | --- | --- |
 | 1. Pick a project | Take a registered project's boundary and claimed impact | Manual (KML file) |
 | 2. Read documents | AI extracts the claimed baseline and tonnage from public project documents | Not built |
-| 3. Generate candidates | Create comparison parcels around the project, with a buffer zone excluded to limit leakage | Partly built (grid of cells, no buffer yet) |
+| 3. Generate candidates | Create comparison parcels around the project, with a buffer zone excluded to limit leakage | Partly built (grid of cells with a 5 km buffer) |
 | 4. Match | Rank candidates by similarity to the project, using only information the outcome could not have influenced | Partly built (see [limitations](#limitations)) |
 | 5. Select | Quantum optimization (QAOA) picks the best set of parcels, balancing similarity and geographic spread | Not built |
 | 6. Freeze | Save the chosen parcels and settings as a hashed snapshot so they cannot be swapped later | Not built |
@@ -78,15 +78,18 @@ All geospatial data comes from Google Earth Engine.
 
 Hansen data updates about once a year, so it is the reference record. Alert layers update more often but are noisier, so they act as provisional early signals.
 
-The current code matches on tree cover in 2000, past loss and elevation. The planned feature set replaces these with the satellite embedding plus road and nighttime-light accessibility. All features must describe the land as it was before the project started.
+The current code matches on forest cover at the start year, pre-start loss and recent trend, elevation, slope, and distance to forest edge, water and roads. The planned feature set replaces these with the satellite embedding plus road and nighttime-light accessibility. All features must describe the land as it was before the project started.
 
 ### Candidate generation and matching (`parcel_finder.py`)
 
-`FindParcels` takes the project polygon and works in three stages:
+`FindParcels` takes the project polygon and works in four stages:
 
-1. **Search region.** A ring around the project: the project polygon buffered by 50 km, minus the project itself.
-2. **Grid.** The ring is covered with 400 m grid cells, and each feature layer is averaged inside every cell.
-3. **Score.** Each cell is compared with the project's average feature values. For each feature the absolute difference is divided by a tolerance (`max_diffs`) and capped at 1; the capped differences are averaged and turned into a 0 to 100 similarity score. The top `parcel_amount` cells (default 200) are returned.
+1. **Search region.** A ring around the project: the project buffered by 50 km, minus the project and a leakage buffer (10 km by default, `buffer_m`). Cells that touch a protected area are dropped too.
+2. **Grid.** The ring and the project are covered with square grid cells (2 km by default, `cell_size_m`), and each feature is averaged inside every cell. Cells with less than half forest are dropped.
+3. **Score.** Each candidate is compared with its `n_nearest` (default 3) closest cells of the project itself, so river-side and inland parts of a large project can both find analogues. Each feature gap is divided by that feature's spread across the candidates, the gaps are combined as a root mean square distance `d`, and `similarity = 1 / (1 + d)`.
+4. **Select.** Greedy coverage: each pick is the candidate that gives the most project cells a better analogue, so unusual parts of the project are not left without one. Picks keep a minimum spacing (`min_spacing_km`). Places left over are filled with the best-scoring cells.
+
+`ring_loss_report()` prints forest-loss rates in rings around the project before and after the start year, to help choose the leakage buffer. It uses post-start data for that choice only, never for matching.
 
 ### QAOA parcel selection (design, not yet implemented)
 
@@ -164,7 +167,7 @@ High Moran's I means clustering gives redundant evidence, so diversity should co
 
 ### Other open decisions
 
-- Size of the leakage buffer around the project.
+- Size of the leakage buffer around the project (currently 5 km) and of the candidate parcels (currently 2 km cells; the project is about 146,000 ha, so 16 ha cells were too small to give stable loss rates).
 - Canopy percentage that counts as forest.
 - Which alert dataset to use, and whether it covers the target region at the confidence level needed.
 - Source of carbon-per-hectare values for converting hectares to tons of CO2.
@@ -176,20 +179,21 @@ High Moran's I means clustering gives redundant evidence, so diversity should co
 
 | File | Purpose |
 | --- | --- |
-| `parcel_finder.py` | `FindParcels` class: builds the search ring, scores 400 m cells against the project, returns the top candidates |
-| `example.py` | Example run: loads a KML boundary, stacks tree cover, loss history and elevation, and runs `FindParcels` with 200 candidates |
+| `parcel_finder.py` | `FindParcels` class: builds the search ring, scores grid cells against the project's own cells, selects well-spaced candidates |
+| `example.py` | Runs `FindParcels` on a KML boundary, prints a quality report, writes `candidates.csv`, `project_cells.csv` and `project_profile.json` |
+| `map_view.py` | Builds the interactive map (`demo_map.html`) |
 
-Everything after candidate search (QAOA selection, snapshot, monitoring, estimation, certificate) is not implemented yet.
+The candidate search matches only on information from before the project start year, on deforestation drivers (forest at start, pre-start loss and trend, elevation, slope, distance to forest edge, water and roads), with features scaled by their spread across the pool. Protected areas are excluded. Not yet implemented: the QAOA run itself, snapshot, monitoring, estimation, certificate. The Earth Engine parts were written without being run against Earth Engine; test before relying on them.
 
 ## Running the code
 
 Requirements: Python 3, a Google account registered for Earth Engine, and a Google Cloud project with the Earth Engine API enabled.
 
 ```bash
-pip install earthengine-api geopandas fiona
+pip install -r requirements.txt
 ```
 
-1. Put the project boundary (a KML file containing one polygon) next to `example.py` and update the file name in the script. The farm boundary used in the example is not stored in this repository.
+1. Put the project boundary (a KML file containing one polygon) next to `example.py` and set `KML_FILE` in `example.py`. The farm boundary used in the example is not stored in this repository.
 2. Initialise Earth Engine with your Cloud project ID, for example `ee.Initialize(project='your-project-id')`. The first run of `ee.Authenticate()` opens a browser window to log in.
 3. Run:
 
@@ -197,12 +201,13 @@ pip install earthengine-api geopandas fiona
 python example.py
 ```
 
-It prints the number of candidate parcels returned. Earth Engine work runs on Google's servers, so large search areas can take a while or hit usage limits.
+It prints a short quality report, saves the result files and opens the map in your browser. Earth Engine work runs on Google's servers, so large search areas can take a while or hit usage limits.
 
 ## Limitations
 
-- **The matching still has known problems.** The deforestation-history feature uses `lossyear > 0` across all years, including years after a project would have started, which breaks the no-circularity principle. There is no leakage buffer yet, and the top-scoring cells are likely to sit next to each other, so the candidate pool is not yet spread out.
-- **Few features in the current code.** Matching uses only tree cover in 2000, past loss and elevation. The planned feature set (satellite embedding plus road and nighttime-light accessibility) is not implemented yet.
+- **Matching does not see frontier exposure.** Before the start year, forest loss was similar everywhere within 30 km, but after it, loss rose steeply with distance from the project. Matching on pre-start features cannot detect this, so far-away candidates may overstate the baseline loss. A pre-start frontier-exposure feature is planned.
+- **The project start year in `example.py` is a placeholder.** All matching features and the ring test depend on it.
+- **Feature caveats.** The roads layer (GRIP4) and protected-area layer are recent snapshots, so for an earlier start year they include information from after the start. Other carbon projects and indigenous land are not excluded.
 - **Estimate, not proof.** Finding that similar land lost more forest than the project is evidence of protection, not proof. Factors that are not matched on could explain part of the difference, so results should be described as estimates.
 - **Alerts are noisy.** They can include fire, degradation and cloud artefacts.
 - **Quantum scale.** Current quantum hardware cannot hold a 200-variable problem, so a classical pre-filter is likely needed, and QAOA must be shown to be competitive with classical baselines.
@@ -211,7 +216,9 @@ It prints the number of candidate parcels returned. Earth Engine work runs on Go
 
 - [x] Candidate search over a 50 km ring using Earth Engine
 - [x] Fix runtime errors in `FindParcels` and default to 200 candidates
-- [ ] Match on pre-start data only, add a leakage buffer, and spread the candidate pool
+- [x] Match on pre-start data only, add a leakage buffer, protected-area exclusion and a spacing rule
+- [x] Score candidates against the project's own grid cells and select by coverage
+- [ ] Add a pre-start frontier-exposure feature, then a placebo test on pre-start years
 - [ ] Switch matching to the planned features (satellite embedding plus road and nighttime-light accessibility)
 - [ ] QAOA selection of K parcels using the z-scored match and distance objective, with a classical baseline
 - [ ] Optional later: Moran's I weight on the distance term
