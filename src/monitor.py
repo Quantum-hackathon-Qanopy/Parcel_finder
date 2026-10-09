@@ -348,7 +348,8 @@ def render_dashboard():
     payloads = []
     for path in sorted(OUTPUT_ROOT.glob('*/dashboard_payload.json')):
         payloads.append(json.loads(path.read_text(encoding='utf-8')))
-    for payload in payloads:                                  # artwork of the five statuses, for the NFT panel
+    for payload in payloads:                                  # explorer and artwork are always the current ones
+        payload['nft']['explorer'] = nft_status.EXPLORER_URL
         if payload['nft']['status']:
             payload['nft']['status']['images'] = nft_status.level_images()
     order = list(PROJECTS)                                    # tabs follow the order in config.py

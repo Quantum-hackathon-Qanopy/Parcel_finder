@@ -35,7 +35,7 @@ import time
 from datetime import datetime, timezone
 
 from config import ROOT, get_env
-from nft_status import (CHAIN_ID, CONTRACT_ADDRESS, EXPLORER_URL, METADATA_JSON, RPC_URL,
+from nft_status import (CHAIN_ID, CONTRACT_ADDRESS, EXPLORER_URL, METADATA_JSON, RPC_URL, token_url,
                         STATE_JSON, build_metadata, build_status, load_latest, load_state)
 
 ABI_JSON = ROOT / 'nft' / 'qanopy_nft_abi.json'
@@ -223,7 +223,7 @@ def publish(dry_run=True, token_id=None, inline=False):
               f'confirmed and recorded; check {EXPLORER_URL}/tx/{tx_hash}')
     print(f'Done: token {token_id} now shows "{status["label"]}".')
     print(f'  transaction {EXPLORER_URL}/tx/{tx_hash}')
-    print(f'  token       {EXPLORER_URL}/token/{contract.address}?a={token_id}')
+    print(f'  token       {token_url(contract.address, token_id)}')
     try:
         import monitor
         monitor.refresh_dashboard()

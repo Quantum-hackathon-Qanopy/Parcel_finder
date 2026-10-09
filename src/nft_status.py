@@ -28,7 +28,12 @@ METADATA_JSON = OUTPUT_DIR / 'nft_metadata.json'        # the metadata that is (
 CONTRACT_ADDRESS = '0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492'    # Base Sepolia
 CHAIN_ID = 84532
 RPC_URL = 'https://sepolia.base.org'
-EXPLORER_URL = 'https://sepolia.basescan.org'
+EXPLORER_URL = 'https://base-sepolia.blockscout.com'   # Blockscout shows the token image; Basescan did not
+
+
+def token_url(contract, token_id):
+    return f'{EXPLORER_URL}/token/{contract}/instance/{token_id}'
+
 
 # Block explorers do not always resolve ipfs:// image links (Basescan showed no image for one), so
 # the metadata's `image` is an https gateway URL and the ipfs:// link is kept as `image_ipfs`.

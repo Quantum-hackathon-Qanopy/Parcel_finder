@@ -417,7 +417,7 @@ function render(D, index) {
     const published = pub.token_id === undefined
       ? `Not published: <code>python src/publish_nft.py --project ${P.slug} --publish</code>`
       : `NFT #${pub.token_id} · ${(st.levels.find(l => l.key === pub.status) || {}).label || pub.status} · week of ${pub.week_start} · ` +
-        `${link('tx/' + pub.tx_hash, 'transaction')} · ${link('token/' + N.contract + '?a=' + pub.token_id, 'token')}`;
+        `${link('tx/' + pub.tx_hash, 'transaction')} · ${link('token/' + N.contract + '/instance/' + pub.token_id, 'token')}`;
     const shown = pub.token_id === undefined ? st.key : pub.status, src = st.images && st.images[shown];
     const artwork = src ? `<a class="nftimg" href="${src}" target="_blank" rel="noopener" title="Open the NFT artwork">` +
       `<img src="${src}" alt="NFT artwork for the status ${shown}" loading="lazy" onerror="this.closest('a').style.display='none'">` +
