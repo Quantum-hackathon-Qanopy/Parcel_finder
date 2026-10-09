@@ -167,6 +167,16 @@
          background: var(--line); color: var(--muted); font: 700 10px/1 inherit; cursor: help; position: relative;
          vertical-align: 1px; font-style: normal; }
   .tip:hover, .tip:focus-visible { background: var(--accent); color: #fff; }
+  .pill { margin-left: 10px; padding: 2px 8px; border-radius: 3px; background: var(--accent-soft); color: var(--deep);
+          font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
+  .qgrid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px 36px; margin-top: 6px; }
+  .quantum td.num { white-space: nowrap; }
+  .quantum .track { min-width: 90px; }
+  .qnote { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+  .future h3 { font-size: 15px; font-weight: 700; margin: 0; color: var(--deep); }
+  .future p { font-size: 13.5px; margin: 8px 0 0; max-width: 62ch; }
+  .future .proj { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .future .payoff { color: var(--deep); font-weight: 600; }
   #tipbox { position: fixed; left: 0; top: 0; z-index: 2000; width: max-content; max-width: min(300px, calc(100vw - 16px));
             background: var(--ink); color: #fff; padding: 9px 12px; border-radius: 4px; pointer-events: none;
             font: 400 12.5px/1.45 "Inter", system-ui, sans-serif; opacity: 0; transition: opacity 0.12s var(--ease);
@@ -175,6 +185,7 @@
   h2 { display: flex; align-items: center; flex-wrap: wrap; }
   .hero .tip { background: rgba(255, 255, 255, 0.2); color: #fff; }
   .tab { white-space: nowrap; }
+  @media (max-width: 860px) { .qgrid { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 560px) {
     .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .tabs::-webkit-scrollbar { display: none; }
@@ -182,7 +193,8 @@
     .controls { flex-wrap: wrap; }
     #weekLabel { flex-basis: 100%; font-size: 13px; color: var(--muted); }
     .legend { gap: 8px 14px; }
-    th:nth-child(2), td:nth-child(2), th:nth-child(5), td:nth-child(5) { display: none; }
+    th:nth-child(4), td:nth-child(4) { display: none; }
+    .qgrid { grid-template-columns: minmax(0, 1fr); }
     th, td { padding: 8px 6px; }
     .card .value { font-size: 30px; }
     .addbtn { padding: 8px 14px; }
@@ -244,11 +256,25 @@
       <div class="controls"><button id="play">Play</button><input type="range" id="week" min="0" value="0"><span id="weekLabel"></span></div>
       <div class="legend"><span>0%</span><span class="ramp"></span><span>10% or more</span><span><i style="color:#ff3b30">&#9644;</i> project boundary</span><span><i style="color:#e0b400">&#9644;</i> leakage buffer</span>
         <span id="mapStats"></span></div></div>
-    <div class="panel wide"><h2>One estimate, three ways to compute it<span class="tip" tabindex="0" id="estimatorHint" data-tip="">i</span></h2>
-      <table><thead><tr><th>Method</th><th>Interval covers</th><th>Median (ha)</th><th>95% interval (ha)</th><th>Range (tick: exact mean)</th></tr></thead>
-        <tbody id="estimators"></tbody></table></div>
     <div class="panel wide" id="co2panel"><h2>Avoided emissions against the claim<span class="tip" tabindex="0" id="claimTip" data-tip="The claim is pro-rated over the monitored window.">i</span></h2>
       <div class="chart"><canvas id="co2"></canvas></div></div>
+    <div class="panel wide quantum" id="qpanel">
+      <h2>Quantum demo<span class="pill">simulated</span><span class="tip" tabindex="0" id="estimatorHint" data-tip="">i</span></h2>
+      <div class="qgrid">
+        <div>
+          <table><thead><tr><th>Method</th><th>Median (ha)</th><th>Sampling interval (ha)</th><th>Range</th></tr></thead>
+            <tbody id="estimators"></tbody></table>
+          <p class="qnote" id="qnote"></p>
+        </div>
+        <div class="future">
+          <h3>Where quantum could change this</h3>
+          <p class="proj">A projection. Not built or measured.</p>
+          <p><b>Estimating at scale.</b> Amplitude estimation needs about 1/&epsilon; runs where sampling needs 1/&epsilon;&sup2;. For &plusmn;1% that is roughly 2,000 instead of 98,000. It pays off when each run is expensive, such as a stochastic deforestation model over every pixel of a project, for thousands of projects, refreshed weekly.</p>
+          <p><b>Choosing comparison parcels.</b> Picking the best 50 of thousands of candidates under many constraints is a search that explodes in size. Classical solvers win at every size we can run today. Quantum optimisation is a candidate beyond them, not a proven one.</p>
+          <p><b>What it takes.</b> Error-corrected hardware: gate errors near 10<sup>-6</sup>, about 3,000&times; better than today's 0.3%. Until then the classical result is what we publish.</p>
+          <p class="payoff">The payoff: auditable estimates for every credit, continuously, at a cost that scales to a whole market and not a handful of projects.</p>
+        </div>
+      </div></div>
   </div>
   <p class="foot" id="foot"></p>
 </main>
@@ -513,25 +539,27 @@ function render(D, index) {
   const body = document.getElementById('estimators');
   if (e) {
     const est = e.estimators;
+    const ratio = (est.mc.interval[1] - est.mc.interval[0]) / (est.qae.interval[1] - est.qae.interval[0]);
     document.getElementById('estimatorHint').dataset.tip =
-      `Week of ${e.week_start}. The bootstrap shows the real uncertainty (which parcels were chosen). Monte Carlo and ` +
-      `simulated amplitude estimation show only sampling error at ${fmt(est.evaluations)} evaluations; amplitude estimation is ` +
-      `${fmt(((est.mc.interval[1] - est.mc.interval[0]) / (est.qae.interval[1] - est.qae.interval[0])), 1)}x tighter, ` +
-      `but sampling was never the bottleneck.`;
+      `Week of ${e.week_start}. Both methods estimate a mean that can be computed exactly, so their intervals show only sampling error, not the real uncertainty (see the avoided-loss card). Amplitude estimation is a noiseless simulation; real hardware today is worse than Monte Carlo.`;
+    document.getElementById('qnote').textContent =
+      `At the same ${fmt(est.evaluations)} evaluations, simulated amplitude estimation is ${fmt(ratio, 1)}x tighter than Monte Carlo. Here it improves a number that was never the bottleneck.`;
     const rows = [
-      ['Exact mean + bootstrap', 'Parcel choice', e.avoided_ha, [e.avoided_ci_lo, e.avoided_ci_hi], '--boot'],
-      ['Monte Carlo, ' + fmt(est.evaluations) + ' samples', 'Sampling error', est.mc.median, est.mc.interval, '--mc'],
-      ['Amplitude estimation (simulated)', 'Sampling error', est.qae.median, est.qae.interval, '--qae'],
+      ['Exact mean (reference)', e.avoided_ha, null, null],
+      ['Monte Carlo, ' + fmt(est.evaluations) + ' samples', est.mc.median, est.mc.interval, '--mc'],
+      ['Amplitude estimation (simulated)', est.qae.median, est.qae.interval, '--qae'],
     ];
-    const lo = Math.min(...rows.map(r => r[3][0])), hi = Math.max(...rows.map(r => r[3][1]));
+    const iv = rows.filter(r => r[2]);
+    const lo = Math.min(...iv.map(r => r[2][0])), hi = Math.max(...iv.map(r => r[2][1]));
     const span = Math.max(hi - lo, 1e-9), at = x => (100 * (x - lo) / span).toFixed(2);
-    body.innerHTML = rows.map(r =>
-      `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${fmt(r[2], 1)}</td>` +
-      `<td class="num">${fmt(r[3][0], 1)} to ${fmt(r[3][1], 1)}</td>` +
-      `<td><div class="track"><div class="bar" style="left:${at(r[3][0])}%;width:${Math.max(at(r[3][1]) - at(r[3][0]), 0.8)}%;background:${css(r[4])}"></div>` +
-      `<div class="tick" style="left:${at(e.avoided_ha)}%"></div></div></td></tr>`).join('');
+    body.innerHTML = rows.map(r => r[2]
+      ? `<tr><td>${r[0]}</td><td class="num">${fmt(r[1], 1)}</td><td class="num">${fmt(r[2][0], 1)} to ${fmt(r[2][1], 1)}</td>` +
+        `<td><div class="track"><div class="bar" style="left:${at(r[2][0])}%;width:${Math.max(at(r[2][1]) - at(r[2][0]), 0.8)}%;background:${css(r[3])}"></div>` +
+        `<div class="tick" style="left:${at(e.avoided_ha)}%"></div></div></td></tr>`
+      : `<tr><td>${r[0]}</td><td class="num">${fmt(r[1], 1)}</td><td>none: computed exactly</td><td></td></tr>`).join('');
   } else {
     body.innerHTML = '';
+    document.getElementById('qnote').textContent = '';
     document.getElementById('estimatorHint').dataset.tip = 'Run monitor.py with --qae-every 1 to compare the estimators.';
   }
 
