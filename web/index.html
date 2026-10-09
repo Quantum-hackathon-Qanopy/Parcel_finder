@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qanopy — Public verification for forest carbon credits</title>
+<meta name="description" content="An open, independently checkable way to see whether a forest carbon credit project is delivering what it claims.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root {
+    --bg: #fafaf7; --panel: #f0f2ee; --ink: #1b3a2f; --muted: #4a5a52;
+    --faint: #5f6f66; --accent: #bf6b2c; --accent-ink: #8f4a1c; --line: #dfe4de;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.6 'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; font-weight: 400; line-height: 1.15; }
+
+  header { padding: 64px 0 48px; }
+  h1 { font-size: 56px; margin: 0 0 20px; letter-spacing: -1px; }
+  .rule { width: 96px; height: 3px; background: var(--accent); margin-bottom: 24px; }
+  .lede { font-size: 21px; color: var(--muted); margin: 0; }
+
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 32px; margin: 0 0 20px; }
+  h3 { font-size: 20px; font-weight: 600; margin: 0 0 8px; font-family: 'IBM Plex Sans', sans-serif; }
+  p { margin: 0 0 16px; }
+  p:last-child { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 12px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 15px; font-weight: 600; color: var(--faint); }
+  td { font-size: 19px; }
+  .measured { color: var(--accent-ink); font-weight: 600; }
+
+  .cards { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 620px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+  .card { background: var(--panel); border-radius: 12px; padding: 24px; }
+  .card p { font-size: 16px; color: var(--muted); }
+
+  .steps { display: grid; gap: 12px; grid-template-columns: 1fr; margin: 0; padding: 0; list-style: none; }
+  @media (min-width: 620px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+  .steps li { background: var(--panel); border-radius: 12px; padding: 20px 24px; }
+  .steps b { display: block; margin-bottom: 4px; }
+  .steps span { font-size: 16px; color: var(--muted); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+  .btn {
+    display: inline-block; padding: 14px 26px; border-radius: 10px;
+    text-decoration: none; font-weight: 600; font-size: 17px;
+    background: var(--ink); color: var(--bg); border: 2px solid var(--ink);
+  }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .note { background: var(--panel); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0;
+          padding: 20px 24px; font-size: 16px; color: var(--muted); }
+
+  footer { padding: 40px 0 64px; border-top: 1px solid var(--line); font-size: 15px; color: var(--faint); }
+  footer a { color: var(--faint); }
+  a { color: var(--accent-ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Qanopy</h1>
+  <div class="rule"></div>
+  <p class="lede">An open, independently checkable way to see whether a forest carbon credit project is delivering what it claims &mdash; using free satellite data that anyone can re-run.</p>
+</header>
+
+<section>
+  <h2>Why this exists</h2>
+  <p>A company pays a landowner not to cut down a forest, and receives carbon credits in return. Each credit represents one tonne of CO<sub>2</sub> that was supposedly never released.</p>
+  <p>But the credit counts trees that <em>would have been</em> cut down. Checking a claim like that means comparing the project against similar unprotected land nearby &mdash; and today that comparison lives inside paid dashboards. When a result turns out unfavourable, nobody is obliged to publish it.</p>
+  <p>Verra&rsquo;s own review of its Kariba project found more than half the credits issued did not represent real climate impact. Companies had already counted them toward public climate targets.</p>
+</section>
+
+<section>
+  <h2>What we found</h2>
+  <p>We ran the pipeline on <b>Fazenda Pacaj&aacute;</b>, a 146,427-hectare REDD+ project in Par&aacute;, Brazil, which began on 14 December 2017.</p>
+  <table>
+    <tr><th>&nbsp;</th><th>Claimed</th><th>Measured</th></tr>
+    <tr><td>Avoided deforestation</td><td>2,770 ha/yr</td><td class="measured">770 ha/yr</td></tr>
+    <tr><td>CO<sub>2</sub>e over the window</td><td>6.8 Mt</td><td class="measured">1.9 Mt</td></tr>
+  </table>
+  <p>Our estimate accounts for roughly <b>28%</b> of the project&rsquo;s own projection &mdash; a gap of about 3.6&times;.</p>
+  <div class="note">
+    <b>This is a first estimate, not a verified result.</b> We are not alleging that this project is fraudulent. We are showing that a gap of this size currently sits where nobody outside a paid platform can inspect it.
+  </div>
+</section>
+
+<section>
+  <h2>Three reasons our own number could be wrong</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>Frontier exposure</h3>
+      <p>Our comparison plots sit nearer the advancing clearing front than the project does. That flatters the project and <b>inflates</b> our estimate.</p>
+    </div>
+    <div class="card">
+      <h3>A few plots dominate</h3>
+      <p>A handful of comparison plots with very large losses carry the average. The 95% interval runs from 2,606 to 8,136 hectares.</p>
+    </div>
+    <div class="card">
+      <h3>A two-year blind spot</h3>
+      <p>Radar alerts begin in 2020, so 2018 and 2019 are missing. That cuts the other way and <b>understates</b> us.</p>
+    </div>
+  </div>
+  <p style="margin-top:20px">Every one of these ships with the result. A number you can argue with is worth more than a number you cannot see.</p>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <ul class="steps">
+    <li><b>1 &middot; Find twin forests</b><span>Satellite data finds unprotected land that matched the project before it started.</span></li>
+    <li><b>2 &middot; Select the set</b><span>50 of 200 plots, balancing match quality against geographic spread.</span></li>
+    <li><b>3 &middot; Freeze and hash</b><span>The chosen set is locked with a SHA-256 hash before monitoring begins, so it cannot be swapped later.</span></li>
+    <li><b>4 &middot; Monitor weekly</b><span>RADD radar alerts track forest loss in the project and in every frozen plot.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>The quantum part, honestly</h2>
+  <p>Choosing the comparison set is a subset-selection problem with a quadratic term, so we wrote it as a QUBO and ran it on IBM&rsquo;s 156-qubit <code>ibm_fez</code> processor. On an 8-qubit version it found the optimal set in <b>70.8%</b> of valid shots, against 1.8% for random guessing.</p>
+  <p>Classical solvers still beat it at every size we can run, and that was a favourable problem instance. We publish that too. Scaling to the full selection would need two-qubit gates roughly 200&times; more accurate than today&rsquo;s. The value of the quantum work right now is a validated formulation and an honest benchmark &mdash; not a claim of advantage.</p>
+</section>
+
+<section>
+  <h2>See for yourself</h2>
+  <p>The monitoring dashboard updates as new radar alerts arrive. The code and the method are open, because &ldquo;independently checkable&rdquo; has to mean it.</p>
+  <div class="actions">
+    <a class="btn" href="/dashboard.html">Open the live dashboard</a>
+    <a class="btn ghost" href="https://github.com/Quantum-hackathon-Qanopy/Parcel_finder">Read the code</a>
+  </div>
+</section>
+
+<footer>
+  <p>Qanopy &middot; Jesper Lindblom, Casper R&ouml;nnl&ouml;f, Axel Valavaara</p>
+  <p>Built at the Quantum &times; Finance Hackathon, Hanken School of Economics, Helsinki, October 2026. Data: Hansen Global Forest Change, RADD radar alerts, SRTM, via Google Earth Engine.</p>
+</footer>
+
+</div>
+</body>
+</html>
