@@ -29,62 +29,11 @@
   ::selection { background: var(--accent); color: var(--accent-ink); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
   main { max-width: 1120px; margin: 0 auto; padding: 0 20px 56px; }
-  header.top { border-bottom: 1px solid var(--line); background: var(--bg); }
-  .topbar { max-width: 1120px; margin: 0 auto; padding: 18px 20px 0; display: flex; justify-content: space-between;
-            align-items: center; gap: 12px; flex-wrap: wrap; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; }
-  .brand svg { width: 30px; height: 30px; flex: none; }
-  .brand .word { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; color: var(--deep); }
-  .brand small { display: block; color: var(--muted); font-weight: 450; font-size: 12.5px; letter-spacing: 0; }
-  .addbtn { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
-            border-radius: 6px; padding: 8px 18px; font: inherit; font-size: 14px; font-weight: 600;
-            cursor: pointer; transition: transform 0.15s var(--ease), filter 0.15s var(--ease); }
-  .addbtn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-  .addbtn:active { transform: none; }
-  .tabs { max-width: 1120px; margin: 0 auto; padding: 14px 20px 0; display: flex; gap: 4px; flex-wrap: wrap; }
-  .tab { border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted);
-         padding: 8px 12px 10px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 550; text-align: left;
-         transition: color 0.15s var(--ease), border-color 0.15s var(--ease); }
-  .tab:hover { color: var(--ink); }
-  .tab.on { color: var(--deep); border-bottom-color: var(--accent); }
-  h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 750; margin: 28px 0 6px;
-       text-wrap: balance; color: var(--deep); }
   h2 { font-size: 16px; font-weight: 650; letter-spacing: -0.005em; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 22px; font-size: 14px; }
   .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px;
             padding: 9px 14px; margin-bottom: 18px; font-size: 13.5px; max-width: 90ch; }
   .banner:empty { display: none; }
-  .hero { background: linear-gradient(135deg, var(--deep) 0%, var(--deep-2) 100%); color: #fff; border-radius: 8px;
-          padding: 30px 32px 26px; margin-bottom: 18px; box-shadow: var(--shadow); }
-  .hero h2 { font-size: 15px; font-weight: 550; color: rgba(255, 255, 255, 0.75); margin: 0; }
-  .hero .status { font-size: 64px; line-height: 1; font-weight: 750; letter-spacing: -0.035em; margin: 6px 0 4px; }
-  .hero .ratio { font-size: 18px; color: rgba(255, 255, 255, 0.85); margin: 0 0 22px; }
-  .hero .ratio b { color: #fff; font-variant-numeric: tabular-nums; }
-  .hero .hint { color: rgba(255, 255, 255, 0.72); font-size: 13px; margin: 16px 0 0; }
-  .hero a { color: #9be8c3; }
-  .hero code { background: rgba(255, 255, 255, 0.14); color: #fff; }
-  .scale { display: flex; gap: 6px; flex-wrap: wrap; }
-  .step { flex: 1; min-width: 110px; padding: 10px 12px; border-radius: 6px; border: 1.5px solid transparent;
-          background: rgba(255, 255, 255, 0.09); color: rgba(255, 255, 255, 0.7); font-size: 12.5px; text-align: center; }
-  .step b { display: block; color: #fff; font-size: 14px; }
-  .step.on { color: #fff; font-weight: 600; border-color: #fff; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
-  .card, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px;
-                  padding: 16px 18px; box-shadow: var(--shadow); }
-  .card { background: var(--surface); box-shadow: none; }
-  .card .label { color: var(--muted); font-size: 13px; font-weight: 500; }
-  .card .value { font-size: 30px; line-height: 1.15; font-weight: 750; letter-spacing: -0.025em; margin: 4px 0 2px;
-                 font-variant-numeric: tabular-nums; color: var(--deep); }
-  .card .note { color: var(--muted); font-size: 13px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 14px; }
-  @media (max-width: 560px) {
-    .grid { grid-template-columns: minmax(0, 1fr); }
-    main { padding: 0 16px 40px; }
-    .topbar, .tabs { padding-left: 16px; padding-right: 16px; }
-    h1 { font-size: 30px; }
-    .hero { padding: 22px 20px; }
-    .hero .status { font-size: 48px; }
-  }
   .panel { padding: 18px 20px; overflow-x: auto; }
   .panel .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; max-width: 80ch; }
   .chart { position: relative; height: 280px; }
@@ -107,6 +56,7 @@
                      border-radius: 6px; padding: 5px 16px; cursor: pointer; font: inherit; font-weight: 550;
                      transition: background 0.15s var(--ease), border-color 0.15s var(--ease); }
   .controls button:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .legend i { font-style: normal; }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-top: 8px;
             align-items: center; }
   .ramp { width: 160px; height: 10px; border-radius: 5px;
@@ -153,6 +103,98 @@
   * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   .leaflet-container { font-family: inherit; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* the band: brand, tabs, project and status on one deep-green field with contour lines */
+  header.top { color: #fff; background-color: var(--deep);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420' fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='1.2'%3E%3Cellipse cx='470' cy='210' rx='40' ry='26'/%3E%3Cellipse cx='470' cy='210' rx='85' ry='56'/%3E%3Cellipse cx='470' cy='210' rx='135' ry='90'/%3E%3Cellipse cx='470' cy='210' rx='190' ry='126'/%3E%3Cellipse cx='470' cy='210' rx='250' ry='164'/%3E%3Cellipse cx='470' cy='210' rx='315' ry='205'/%3E%3Cellipse cx='470' cy='210' rx='385' ry='250'/%3E%3C/svg%3E"),
+      linear-gradient(135deg, #0a3224 0%, #0c3d2b 50%, #145a40 100%);
+    background-repeat: no-repeat; background-position: right -80px top -40px, 0 0; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+            padding-top: 18px; padding-bottom: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { width: 32px; height: 32px; flex: none; }
+  .brand .word { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+  .brand small { display: block; color: rgba(255, 255, 255, 0.65); font-weight: 450; font-size: 12px; letter-spacing: 0; }
+  .addbtn { border: 0; background: #fff; color: var(--deep); border-radius: 6px; padding: 9px 18px; font: inherit;
+            font-size: 14px; font-weight: 700; cursor: pointer; transition: transform 0.15s var(--ease), background 0.15s var(--ease); }
+  .addbtn:hover { background: #d8f5e6; transform: translateY(-1px); }
+  .addbtn:active { transform: none; }
+  .tabs { display: flex; gap: 2px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 0; }
+  .tab { border: 0; border-bottom: 3px solid transparent; background: transparent; color: rgba(255, 255, 255, 0.62);
+         padding: 8px 12px 10px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; text-align: left;
+         transition: color 0.15s var(--ease), border-color 0.15s var(--ease); }
+  .tab:hover { color: #fff; }
+  .tab.on { color: #fff; border-bottom-color: #4ade9b; }
+  header.top :focus-visible { outline-color: #9be8c3; }
+  .heroband { padding-top: 34px; padding-bottom: 40px; }
+  h1 { font-size: 22px; line-height: 1.2; font-weight: 650; letter-spacing: -0.01em; margin: 0; color: rgba(255, 255, 255, 0.85); }
+  .sub { color: rgba(255, 255, 255, 0.6); margin: 2px 0 0; font-size: 13.5px; }
+  .hero { margin-top: 18px; }
+  .hero .row1 { display: flex; align-items: baseline; gap: 18px 28px; flex-wrap: wrap; }
+  .hero .status { font-size: clamp(64px, 11vw, 120px); line-height: 0.95; font-weight: 800; letter-spacing: -0.045em; }
+  .hero .ratio { font-size: 20px; color: rgba(255, 255, 255, 0.85); margin: 0; }
+  .hero .ratio b { color: #fff; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .nftimg { margin-left: auto; align-self: center; display: block; width: 168px; flex: none; text-decoration: none; }
+  .nftimg img { display: block; width: 100%; aspect-ratio: 460 / 474; object-fit: cover; border: 3px solid #fff; border-radius: 4px;
+                background: rgba(255, 255, 255, 0.1); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); transition: transform 0.2s var(--ease); }
+  .nftimg:hover img { transform: translateY(-2px) rotate(-1deg); }
+  .nftimg span { display: block; margin-top: 6px; font-size: 12px; color: rgba(255, 255, 255, 0.65); text-align: center; }
+  .hero .hint { color: rgba(255, 255, 255, 0.7); font-size: 13px; margin: 18px 0 0; }
+  .hero a { color: #9be8c3; }
+  .hero code { background: rgba(255, 255, 255, 0.14); color: #fff; }
+  .gauge { position: relative; margin-top: 34px; padding-top: 42px; }
+  .segs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+  .seg { height: 12px; background: rgba(255, 255, 255, 0.16); }
+  .seg.on { height: 12px; }
+  .labels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 8px; }
+  .labels div { font-size: 12px; color: rgba(255, 255, 255, 0.55); line-height: 1.35; }
+  .labels b { display: block; font-size: 13.5px; color: rgba(255, 255, 255, 0.8); font-weight: 650; }
+  .labels .on, .labels .on b { color: #fff; }
+  .marker { position: absolute; top: 0; transform: translateX(-50%); text-align: center; font-size: 12.5px;
+            font-weight: 700; font-variant-numeric: tabular-nums; transition: left 0.6s var(--ease); }
+  .marker::after { content: ""; display: block; width: 0; height: 0; margin: 4px auto 0; border-left: 6px solid transparent;
+                   border-right: 6px solid transparent; border-top: 8px solid #fff; }
+  main { padding-top: 26px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .card, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px;
+                  box-shadow: var(--shadow); }
+  .card { border-top: 4px solid var(--accent); }
+  .card .label { color: var(--muted); font-size: 13px; font-weight: 550; }
+  .card .value { font-size: 36px; line-height: 1.1; font-weight: 800; letter-spacing: -0.03em; margin: 6px 0 2px;
+                 font-variant-numeric: tabular-nums; color: var(--deep); }
+  .card .note { color: var(--muted); font-size: 13px; }
+  .tip { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%;
+         background: var(--line); color: var(--muted); font: 700 10px/1 inherit; cursor: help; position: relative;
+         vertical-align: 1px; font-style: normal; }
+  .tip:hover, .tip:focus-visible { background: var(--accent); color: #fff; }
+  #tipbox { position: fixed; left: 0; top: 0; z-index: 2000; width: max-content; max-width: min(300px, calc(100vw - 16px));
+            background: var(--ink); color: #fff; padding: 9px 12px; border-radius: 4px; pointer-events: none;
+            font: 400 12.5px/1.45 "Inter", system-ui, sans-serif; opacity: 0; transition: opacity 0.12s var(--ease);
+            border: 1px solid rgba(255, 255, 255, 0.22); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
+  #tipbox.on { opacity: 1; }
+  h2 { display: flex; align-items: center; flex-wrap: wrap; }
+  .hero .tip { background: rgba(255, 255, 255, 0.2); color: #fff; }
+  .tab { white-space: nowrap; }
+  @media (max-width: 560px) {
+    .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    #map { height: 360px; }
+    .controls { flex-wrap: wrap; }
+    #weekLabel { flex-basis: 100%; font-size: 13px; color: var(--muted); }
+    .legend { gap: 8px 14px; }
+    th:nth-child(2), td:nth-child(2), th:nth-child(5), td:nth-child(5) { display: none; }
+    th, td { padding: 8px 6px; }
+    .card .value { font-size: 30px; }
+    .addbtn { padding: 8px 14px; }
+    .brand small { display: none; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    main { padding-left: 16px; padding-right: 16px; }
+    .wrap { padding: 0 16px; }
+    .heroband { padding-top: 24px; padding-bottom: 30px; }
+    .nftimg { width: 112px; }
+    .labels div { font-size: 10.5px; }
+    .labels b { font-size: 11.5px; }
+  }
 </style>
 </head>
 <body>
@@ -172,43 +214,40 @@
   });
 </script>
 <header class="top">
-  <div class="topbar">
+  <div class="wrap topbar">
     <div class="brand">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#0c3d2b"/>
-        <path d="M16 6c-5.5 3-8 7.5-7 12 .6 2.8 3 5 7 6 4-1 6.4-3.2 7-6 1-4.500-1.500-9-7-12z" fill="#15935f"/>
-        <path d="M16 11v13M16 16l-3-2.500M16 19l3-2.500" stroke="#fff" stroke-width="1.600" stroke-linecap="round" fill="none"/></svg>
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#ffffff"/>
+        <path d="M16 6c-5.5 3-8 7.5-7 12 .6 2.8 3 5 7 6 4-1 6.4-3.2 7-6 1-4.5-1.5-9-7-12z" fill="#15935f"/>
+        <path d="M16 11v13M16 16l-3-2.5M16 19l3-2.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>
       <div class="word">Qanopy<small>Carbon credit verification</small></div>
     </div>
     <button class="addbtn" id="addBtn">+ Add project</button>
   </div>
-  <div class="tabs" id="tabs"></div>
+  <div class="wrap tabs" id="tabs"></div>
+  <div class="wrap heroband">
+    <h1 id="title">Forest monitoring</h1>
+    <p class="sub" id="sub"></p>
+    <div class="hero" id="nft"></div>
+  </div>
 </header>
 <main>
   <div class="banner" id="jobBanner"></div>
-  <h1 id="title">Forest monitoring</h1>
-  <p class="sub" id="sub"></p>
-  <div class="hero" id="nft"></div>
-  <div class="cards" id="cards"></div>
   <div class="banner" id="banner"></div>
+  <div class="cards" id="cards"></div>
   <div class="grid">
-    <div class="panel"><h2>Cumulative forest loss</h2>
-      <p class="hint">Share of forest lost. Shaded: middle 90% of the parcels.</p>
+    <div class="panel"><h2>Cumulative forest loss<span class="tip" tabindex="0" data-tip="Share of forest lost since monitoring started. Shaded: the middle 90% of the comparison parcels.">i</span></h2>
       <div class="chart"><canvas id="rates"></canvas></div></div>
-    <div class="panel"><h2>Avoided loss</h2>
-      <p class="hint">Forest the project kept standing compared with the parcels. Shaded: 95% interval.</p>
+    <div class="panel"><h2>Avoided loss<span class="tip" tabindex="0" data-tip="Forest the project kept standing compared with the parcels. Shaded: 95% bootstrap interval.">i</span></h2>
       <div class="chart"><canvas id="avoided"></canvas></div></div>
-    <div class="panel wide"><h2>Where the loss happened</h2>
-      <p class="hint">Each square is a 2 km cell, coloured by the share of its forest lost. Toggle layers in the menu.</p>
+    <div class="panel wide"><h2>Where the loss happened<span class="tip" tabindex="0" data-tip="Each square is a 2 km cell, coloured by the share of its forest lost so far. Use the layer menu to toggle zones and features.">i</span></h2>
       <div id="map"></div>
       <div class="controls"><button id="play">Play</button><input type="range" id="week" min="0" value="0"><span id="weekLabel"></span></div>
-      <div class="legend"><span>0%</span><span class="ramp"></span><span>10% or more</span><span style="color:#ff3b30">&#9644; project boundary</span><span style="color:#ffd60a">&#9644; leakage buffer</span>
+      <div class="legend"><span>0%</span><span class="ramp"></span><span>10% or more</span><span><i style="color:#ff3b30">&#9644;</i> project boundary</span><span><i style="color:#e0b400">&#9644;</i> leakage buffer</span>
         <span id="mapStats"></span></div></div>
-    <div class="panel wide"><h2>One estimate, three ways to compute it</h2>
-      <p class="hint" id="estimatorHint"></p>
-      <table><thead><tr><th>Method</th><th>What the interval measures</th><th>Median (ha)</th><th>95% interval (ha)</th><th>Range (tick: exact mean)</th></tr></thead>
+    <div class="panel wide"><h2>One estimate, three ways to compute it<span class="tip" tabindex="0" id="estimatorHint" data-tip="">i</span></h2>
+      <table><thead><tr><th>Method</th><th>Interval covers</th><th>Median (ha)</th><th>95% interval (ha)</th><th>Range (tick: exact mean)</th></tr></thead>
         <tbody id="estimators"></tbody></table></div>
-    <div class="panel wide" id="co2panel"><h2>Avoided emissions against the claim</h2>
-      <p class="hint">Claim pro-rated over the monitored window.</p>
+    <div class="panel wide" id="co2panel"><h2>Avoided emissions against the claim<span class="tip" tabindex="0" id="claimTip" data-tip="The claim is pro-rated over the monitored window.">i</span></h2>
       <div class="chart"><canvas id="co2"></canvas></div></div>
   </div>
   <p class="foot" id="foot"></p>
@@ -262,6 +301,26 @@ try {
 }
 if (!ALL.length) problem('No project has monitoring results yet. Run <code>python src/monitor.py</code> first.');
 
+// one floating tooltip for every "i" icon: it stays on screen and is never clipped by a panel
+const tipBox = document.createElement('div');
+tipBox.id = 'tipbox'; tipBox.setAttribute('role', 'tooltip');
+document.body.appendChild(tipBox);
+const hideTip = () => tipBox.classList.remove('on');
+function showTip(el) {
+  const text = el.dataset.tip;
+  if (!text) return hideTip();
+  tipBox.textContent = text; tipBox.style.left = '0px'; tipBox.style.top = '0px';
+  const r = el.getBoundingClientRect(), w = tipBox.offsetWidth, h = tipBox.offsetHeight, vw = document.documentElement.clientWidth;
+  const x = Math.min(Math.max(r.left + r.width / 2 - w / 2, 8), vw - w - 8);
+  const y = r.bottom + 8 + h > innerHeight - 8 && r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8;
+  tipBox.style.left = x + 'px'; tipBox.style.top = y + 'px'; tipBox.classList.add('on');
+}
+document.addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('.tip'); t ? showTip(t) : hideTip(); });
+document.addEventListener('focusin', e => { const t = e.target.closest && e.target.closest('.tip'); t ? showTip(t) : hideTip(); });
+document.addEventListener('focusout', hideTip);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
+window.addEventListener('scroll', hideTip, {passive: true});
+
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt = (x, d = 0) => x.toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
 const pct = (x, d = 2) => (100 * x).toFixed(d) + '%';
@@ -286,55 +345,62 @@ function render(D, index) {
     `<button class="tab ${i === index ? 'on' : ''}" data-i="${i}">${p.project.name.split(/ \(| \/ /)[0]}</button>`).join('');
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => render(ALL[+b.dataset.i], +b.dataset.i));
   document.getElementById('sub').textContent =
-    `Alerts through the week of ${last.week_start}. Updated ${D.retrieved.slice(0, 10)}.`;
+    `Alerts to ${last.week_start} · updated ${D.retrieved.slice(0, 10)}`;
 
-  let banner = !hasCarbon
-    ? '<b>No carbon density yet:</b> hectares only, no tCO2e or NFT status. '
-    : P.density_source === 'assumption'
-    ? `<b>Assumed carbon density:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha, so tCO2e figures and the status are only as good as that. `
-    : `<b>Carbon density:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha, from the project's own projection. `;
-  banner += `The last ${D.provisional_weeks} weeks are provisional.`;
+  let banner = !hasCarbon ? '<b>No carbon density yet:</b> hectares only, no NFT status.'
+    : P.density_source === 'assumption' ? `<b>Assumed density:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha.` : '';
   if (P.registered_ha && Math.abs(D.project_forest_ha / P.registered_ha - 1) > 0.2)
-    banner += ` <b>Area check:</b> ${fmt(D.project_forest_ha)} ha monitored vs ${fmt(P.registered_ha)} ha registered.`;
+    banner += ` <b>Area check:</b> ${fmt(D.project_forest_ha)} ha monitored vs ${fmt(P.registered_ha)} registered.`;
   document.getElementById('banner').innerHTML = banner;
 
   const co2 = last.avoided_tco2, claim = last.claim_tco2;
   const projectYears = years(P.start, P.end);
+  const tip = text => `<span class="tip" tabindex="0" data-tip="${text}">i</span>`;
+  const density = hasCarbon ? `Carbon density ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha, ` +
+    (P.density_source === 'assumption' ? 'an assumption.' : "from the project's own projection.") : '';
   const cards = [
-    ['Avoided loss', fmt(last.avoided_ha) + ' ha', `95% interval ${fmt(last.avoided_ci_lo)} to ${fmt(last.avoided_ci_hi)}`],
-    ['Project loss', pct(last.project_rate), `of ${fmt(D.project_forest_ha)} ha of forest`],
-    ['Comparison parcels', pct(last.parcel_rate_mean), `mean of ${D.snapshot.parcels} parcels`],
+    ['Avoided loss', fmt(last.avoided_ha) + ' ha', `95%: ${fmt(last.avoided_ci_lo)} to ${fmt(last.avoided_ci_hi)}`,
+      'Forest the project kept standing compared with the comparison parcels, with a 95% bootstrap interval.'],
+    ['Project loss', pct(last.project_rate), `of ${fmt(D.project_forest_ha)} ha`, 'Share of the forest inside the project boundary lost since monitoring started.'],
+    ['Comparison parcels', pct(last.parcel_rate_mean), `mean of ${D.snapshot.parcels}`, 'Mean loss across the comparison parcels, frozen in the snapshot.'],
   ];
-  if (hasCarbon) cards.push(['Avoided emissions', fmt(co2) + ' tCO2e', `${pct(co2 / claim, 1)} of the pro-rated claim`]);
+  if (hasCarbon) cards.push(['Avoided emissions', fmt(co2) + ' tCO2e', `${pct(co2 / claim, 1)} of claim`,
+    density + ` The claim is pro-rated over the monitored window.`]);
   cards.push(['Avoided-loss rate', fmt(last.avoided_ha / years(D.since, last.week_start)) + ' ha/yr',
-    P.projected_ha ? `projected ${fmt(P.projected_ha / projectYears)} ha/yr` : 'over the window']);
+    P.projected_ha ? `projected ${fmt(P.projected_ha / projectYears)}` : 'measured', 'Hectares avoided per year over the monitored window.']);
   cards.push(['Project progress', pct(years(P.start, last.week_start) / projectYears, 1),
-    `${years(P.start, last.week_start).toFixed(1)} of ${projectYears.toFixed(0)} years`]);
+    `${years(P.start, last.week_start).toFixed(1)} of ${projectYears.toFixed(0)} years`, `Crediting period ${P.start} to ${P.end}.`]);
   document.getElementById('cards').innerHTML = cards.map(c =>
-    `<div class="card"><div class="label">${c[0]}</div><div class="value">${c[1]}</div><div class="note">${c[2]}</div></div>`).join('');
+    `<div class="card"><div class="label">${c[0]}${tip(c[3])}</div><div class="value">${c[1]}</div><div class="note">${c[2]}</div></div>`).join('');
 
-  // NFT status: five levels, the current one highlighted, and what has been published
+  // NFT status: a gauge of the five levels with a marker at the measured share of the claim
   const N = D.nft, st = N.status, pub = N.published || {};
   if (!st) {
-    document.getElementById('nft').innerHTML = '<h2>NFT status</h2><div class="status">Not available</div><p class="hint">Needs a carbon density to compare with the claim.</p>';
+    document.getElementById('nft').innerHTML = '<div class="row1"><div class="status">No status</div></div><p class="hint">Needs a carbon density to compare with the claim.</p>';
   } else {
-    const colours = {worst: '#c0392b', bad: '#e67e22', neutral: '#3b82c4', good: '#6fa83a', best: '#15935f'};
+    const colours = {worst: '#e5483a', bad: '#f08a2b', neutral: '#4aa3e8', good: '#8cc63f', best: '#2fd49a'};
     const range = (lv, i) => i === 0 ? `below ${fmt(100 * lv.upper)}%`
       : lv.upper === null ? `above ${fmt(100 * st.levels[i - 1].upper)}%`
-      : `${fmt(100 * st.levels[i - 1].upper)} to ${fmt(100 * lv.upper)}%`;
-    const steps = st.levels.map((lv, i) =>
-      `<div class="step ${lv.key === st.key ? 'on' : ''}" style="${lv.key === st.key ? 'background:' + colours[lv.key] : ''}">` +
-      `<b>${lv.label}</b>${range(lv, i)}</div>`).join('');
+      : `${fmt(100 * st.levels[i - 1].upper)}–${fmt(100 * lv.upper)}%`;
+    const at = st.levels.findIndex(l => l.key === st.key);
+    const lo = at === 0 ? 0 : st.levels[at - 1].upper, hi = st.levels[at].upper === null ? lo * 1.5 : st.levels[at].upper;
+    const pos = 100 * (at + Math.min(Math.max((st.ratio - lo) / (hi - lo), 0.04), 0.96)) / st.levels.length;
+    const segs = st.levels.map(lv => `<div class="seg ${lv.key === st.key ? 'on' : ''}" style="${lv.key === st.key ? 'background:' + colours[lv.key] : ''}"></div>`).join('');
+    const names = st.levels.map((lv, i) => `<div class="${lv.key === st.key ? 'on' : ''}"><b>${lv.label}</b>${range(lv, i)}</div>`).join('');
     const link = (path, text) => `<a href="${N.explorer}/${path}" target="_blank" rel="noopener">${text}</a>`;
     const published = pub.token_id === undefined
-      ? `Not published yet: <code>python src/publish_nft.py --project ${P.slug} --publish</code>`
-      : `On-chain: token #${pub.token_id} shows <b>${(st.levels.find(l => l.key === pub.status) || {}).label || pub.status}</b> ` +
-        `for the week of ${pub.week_start} · ${link('tx/' + pub.tx_hash, 'transaction')} · ` +
-        `${link('token/' + N.contract + '?a=' + pub.token_id, 'token')}`;
+      ? `Not published: <code>python src/publish_nft.py --project ${P.slug} --publish</code>`
+      : `NFT #${pub.token_id} · ${(st.levels.find(l => l.key === pub.status) || {}).label || pub.status} · week of ${pub.week_start} · ` +
+        `${link('tx/' + pub.tx_hash, 'transaction')} · ${link('token/' + N.contract + '?a=' + pub.token_id, 'token')}`;
+    const shown = pub.token_id === undefined ? st.key : pub.status, src = st.images && st.images[shown];
+    const artwork = src ? `<a class="nftimg" href="${src}" target="_blank" rel="noopener" title="Open the NFT artwork">` +
+      `<img src="${src}" alt="NFT artwork for the status ${shown}" loading="lazy" onerror="this.closest('a').style.display='none'">` +
+      `<span>${pub.token_id === undefined ? 'Artwork for this status' : 'NFT #' + pub.token_id + ' artwork'}</span></a>` : '';
     document.getElementById('nft').innerHTML =
-      `<h2>NFT status</h2><div class="status">${st.label}</div>` +
-      `<p class="ratio"><b>${pct(st.ratio, 0)}</b> of the claim so far${st.provisional ? ' (newest weeks provisional)' : ''}</p>` +
-      `<div class="scale">${steps}</div><p class="hint">${published}</p>`;
+      `<div class="row1"><div class="status">${st.label}</div>` +
+      `<p class="ratio"><b>${pct(st.ratio, 0)}</b> of claim${tip('Measured avoided emissions as a share of the claim pro-rated over the monitored window. Neutral means on track.' + (st.provisional ? ' The newest weeks are provisional.' : ''))}</p>` + artwork + `</div>` +
+      `<div class="gauge"><div class="marker" style="left:${pos}%">${pct(st.ratio, 0)}</div><div class="segs">${segs}</div><div class="labels">${names}</div></div>` +
+      `<p class="hint">${published}</p>`;
   }
 
   const labels = R.map(r => r.week_start);
@@ -360,10 +426,11 @@ function render(D, index) {
     {...base, label: 'Avoided loss (ha)', data: R.map(r => r.avoided_ha), borderColor: css('--parcels')},
   ]}, options: axes('hectares', v => fmt(v))});
 
+  document.getElementById('claimTip').dataset.tip = `The claim (${fmt(P.claim_per_year)} tCO2e per year) is pro-rated over the monitored window.`;
   document.getElementById('co2panel').style.display = hasCarbon ? '' : 'none';
   if (hasCarbon) chart('co2', {type: 'line', data: {labels, datasets: [
     {...base, label: 'Avoided emissions (tCO2e)', data: R.map(r => r.avoided_tco2), borderColor: css('--parcels')},
-    {...base, label: 'Claim, pro-rated (' + fmt(P.claim_per_year) + ' tCO2e per year)', data: R.map(r => r.claim_tco2), borderColor: css('--muted'), borderDash: [6, 4]},
+    {...base, label: 'Claim, pro-rated', data: R.map(r => r.claim_tco2), borderColor: css('--muted'), borderDash: [6, 4]},
   ]}, options: axes('tCO2e', v => fmt(v))});
 
   // map of cumulative loss by square, with a week slider and layers that can be switched on and off
@@ -409,7 +476,7 @@ function render(D, index) {
   overlays['Project grid cells'] = g.cells;
   overlays['Comparison parcels'] = g.parcels;
   [g.buffer, g.cells, g.parcels, g.boundary].forEach(layer => layer.addTo(map));
-  L.control.layers(null, overlays, {collapsed: false}).addTo(map);
+  L.control.layers(null, overlays, {collapsed: matchMedia('(max-width: 700px)').matches}).addTo(map);
   map.on('overlayadd', () => outline.forEach(o => o.bringToFront()));   // keep the outline readable on top
 
   const bounds = L.latLngBounds(S.cells.concat(S.parcels).map(q => [q.lat, q.lon]));
@@ -446,15 +513,15 @@ function render(D, index) {
   const body = document.getElementById('estimators');
   if (e) {
     const est = e.estimators;
-    document.getElementById('estimatorHint').textContent =
+    document.getElementById('estimatorHint').dataset.tip =
       `Week of ${e.week_start}. The bootstrap shows the real uncertainty (which parcels were chosen). Monte Carlo and ` +
       `simulated amplitude estimation show only sampling error at ${fmt(est.evaluations)} evaluations; amplitude estimation is ` +
       `${fmt(((est.mc.interval[1] - est.mc.interval[0]) / (est.qae.interval[1] - est.qae.interval[0])), 1)}x tighter, ` +
       `but sampling was never the bottleneck.`;
     const rows = [
-      ['Classical: exact mean + bootstrap over the parcels', 'Which parcels were chosen', e.avoided_ha, [e.avoided_ci_lo, e.avoided_ci_hi], '--boot'],
-      ['Classical Monte Carlo, ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.mc.median, est.mc.interval, '--mc'],
-      ['Amplitude estimation (simulated), ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.qae.median, est.qae.interval, '--qae'],
+      ['Exact mean + bootstrap', 'Parcel choice', e.avoided_ha, [e.avoided_ci_lo, e.avoided_ci_hi], '--boot'],
+      ['Monte Carlo, ' + fmt(est.evaluations) + ' samples', 'Sampling error', est.mc.median, est.mc.interval, '--mc'],
+      ['Amplitude estimation (simulated)', 'Sampling error', est.qae.median, est.qae.interval, '--qae'],
     ];
     const lo = Math.min(...rows.map(r => r[3][0])), hi = Math.max(...rows.map(r => r[3][1]));
     const span = Math.max(hi - lo, 1e-9), at = x => (100 * (x - lo) / span).toFixed(2);
@@ -465,7 +532,7 @@ function render(D, index) {
       `<div class="tick" style="left:${at(e.avoided_ha)}%"></div></div></td></tr>`).join('');
   } else {
     body.innerHTML = '';
-    document.getElementById('estimatorHint').textContent = 'Run monitor.py with --qae-every 1 to compare the estimators.';
+    document.getElementById('estimatorHint').dataset.tip = 'Run monitor.py with --qae-every 1 to compare the estimators.';
   }
 
   document.getElementById('foot').innerHTML =

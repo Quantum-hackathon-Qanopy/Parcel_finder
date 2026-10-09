@@ -52,6 +52,11 @@ def status_for(ratio):
     raise ValueError('unreachable')
 
 
+def level_images():
+    """{status key: https image URL} for the five statuses, as shown on the dashboard."""
+    return {key: IMAGE_GATEWAY + image.removeprefix('ipfs://') for key, _, _, image in STATUSES}
+
+
 def build_status(latest):
     """Status and headline numbers from monitoring_latest.json (the newest week), or None when
     the project has no carbon density and so no tCO2e figure to compare with the claim."""
