@@ -3,22 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Dashboard — Qanopy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400&display=swap">
 <style>
-  :root { --bg:#fafaf7; --panel:#f0f2ee; --ink:#1b3a2f; --muted:#4a5a52; --accent:#bf6b2c; }
+  /* Palette taken from src/monitor_dashboard.html, so the placeholder and the
+     real dashboard that replaces it look the same. */
+  :root { --bg:#f6f7f4; --card:#ffffff; --ink:#1d2a22; --muted:#5b6a61;
+          --line:#dfe4de; --accent:#d98324; --accent-ink:#8f4a1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141a16; --card:#1d2620; --ink:#e8efe9; --muted:#9bb0a3;
+            --line:#2f3d34; --accent:#f0a851; --accent-ink:#f0a851; }
+  }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
          font:17px/1.6 'IBM Plex Sans', system-ui, sans-serif;
          display:flex; align-items:center; justify-content:center; min-height:100vh; padding:16px; }
-  .box { max-width:560px; background:var(--panel); border-radius:14px; padding:40px 32px; }
+  .box { max-width:560px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:40px 32px; }
   h1 { font-family:'Source Serif 4', Georgia, serif; font-weight:400; font-size:34px;
        line-height:1.15; margin:0 0 20px; }
   p { margin:0 0 16px; color:var(--muted); }
   p:last-child { margin-bottom:0; }
-  a { color:#8f4a1c; }
+  a { color:var(--accent-ink); }
   .rule { width:72px; height:3px; background:var(--accent); margin-bottom:24px; }
 </style>
 </head>

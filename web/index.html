@@ -5,13 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Qanopy — Public verification for forest carbon credits</title>
 <meta name="description" content="An open, independently checkable way to see whether a forest carbon credit project is delivering what it claims.">
+<meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 <style>
+  /* Palette taken from src/monitor_dashboard.html so this page and the
+     dashboard read as one site, in both light and dark mode. */
   :root {
-    --bg: #fafaf7; --panel: #f0f2ee; --ink: #1b3a2f; --muted: #4a5a52;
-    --faint: #5f6f66; --accent: #bf6b2c; --accent-ink: #8f4a1c; --line: #dfe4de;
+    --bg: #f6f7f4; --card: #ffffff; --ink: #1d2a22; --muted: #5b6a61; --line: #dfe4de;
+    --accent: #d98324; --accent-ink: #8f4a1c; --green: #1b7f5a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141a16; --card: #1d2620; --ink: #e8efe9; --muted: #9bb0a3; --line: #2f3d34;
+      --accent: #f0a851; --accent-ink: #f0a851; --green: #4fd1a0;
+    }
   }
   * { box-sizing: border-box; }
   body {
@@ -20,7 +29,7 @@
     -webkit-text-size-adjust: 100%;
   }
   .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
-  h1, h2, h3 { font-family: 'Source Serif 4', Georgia, serif; font-weight: 400; line-height: 1.15; }
+  h1, h2 { font-family: 'Source Serif 4', Georgia, serif; font-weight: 400; line-height: 1.15; }
 
   header { padding: 64px 0 48px; }
   h1 { font-size: 56px; margin: 0 0 20px; letter-spacing: -1px; }
@@ -29,25 +38,25 @@
 
   section { padding: 40px 0; border-top: 1px solid var(--line); }
   h2 { font-size: 32px; margin: 0 0 20px; }
-  h3 { font-size: 20px; font-weight: 600; margin: 0 0 8px; font-family: 'IBM Plex Sans', sans-serif; }
+  h3 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
   p { margin: 0 0 16px; }
   p:last-child { margin-bottom: 0; }
 
   table { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-variant-numeric: tabular-nums; }
   th, td { padding: 12px 8px; border-bottom: 1px solid var(--line); text-align: right; }
   th:first-child, td:first-child { text-align: left; }
-  th { font-size: 15px; font-weight: 600; color: var(--faint); }
+  th { font-size: 15px; font-weight: 600; color: var(--muted); }
   td { font-size: 19px; }
   .measured { color: var(--accent-ink); font-weight: 600; }
 
   .cards { display: grid; gap: 16px; grid-template-columns: 1fr; }
   @media (min-width: 620px) { .cards { grid-template-columns: repeat(3, 1fr); } }
-  .card { background: var(--panel); border-radius: 12px; padding: 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
   .card p { font-size: 16px; color: var(--muted); }
 
   .steps { display: grid; gap: 12px; grid-template-columns: 1fr; margin: 0; padding: 0; list-style: none; }
   @media (min-width: 620px) { .steps { grid-template-columns: repeat(2, 1fr); } }
-  .steps li { background: var(--panel); border-radius: 12px; padding: 20px 24px; }
+  .steps li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
   .steps b { display: block; margin-bottom: 4px; }
   .steps span { font-size: 16px; color: var(--muted); }
 
@@ -60,12 +69,12 @@
   .btn.ghost { background: transparent; color: var(--ink); }
   .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
-  .note { background: var(--panel); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0;
-          padding: 20px 24px; font-size: 16px; color: var(--muted); }
+  .note { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+          border-radius: 0 10px 10px 0; padding: 20px 24px; font-size: 16px; color: var(--muted); }
 
-  footer { padding: 40px 0 64px; border-top: 1px solid var(--line); font-size: 15px; color: var(--faint); }
-  footer a { color: var(--faint); }
+  footer { padding: 40px 0 64px; border-top: 1px solid var(--line); font-size: 15px; color: var(--muted); }
   a { color: var(--accent-ink); }
+  code { font-family: ui-monospace, 'Cascadia Code', Menlo, monospace; font-size: 0.92em; }
 </style>
 </head>
 <body>
