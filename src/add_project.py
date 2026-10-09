@@ -39,9 +39,11 @@ from datetime import date, datetime
 from pathlib import Path
 
 from config import DATA_DIR, PROJECTS, ROOT, read_registry, write_project
-from geo import boundary_report, canopy_share, detect_radd_geography, load_boundary
+from geo import area_ha, boundary_report, canopy_share, detect_radd_geography, kml_layers, load_boundary
 
 MAX_AREA_GAP = 0.15            # warn when the boundary area differs from the registered one by more
+MAX_AREA_RATIO = 3.0          # a boundary this many times larger or smaller than the registered area is refused
+MAX_AREA_HA = 1_000_000        # the Earth Engine work cannot handle much more than this
 MIN_PROJECT_CELLS = 10         # fewer cells mostly inside the project cannot represent it
 MIN_CANOPY_SHARE = 0.05        # below this the project has almost no forest at the 30% threshold
 WARN_CANOPY_SHARE = 0.20
@@ -256,21 +258,45 @@ def process(a):
 
     kml = find_kml(a.kml)
     print(f'\nChecking the boundary {kml.name} ...')
-    report = boundary_report(kml)
+    layer = getattr(a, 'kml_layer', None)
+    layers = kml_layers(kml)
+    if not layers:
+        raise SystemExit(f'No polygons found in {kml.name}. The boundary has to be a polygon.')
+    if len(layers) > 1 and layer is None:
+        sizes = {name: area_ha(geometry) for name, geometry in layers.items()}
+        print(f'  The file has {len(layers)} layers with polygons: '
+              + '; '.join(f'{name} ({size:,.0f} ha)' for name, size in sizes.items()))
+        if a.registered_ha:
+            best = min(sizes, key=lambda name: abs(sizes[name] / a.registered_ha - 1))
+            if abs(sizes[best] / a.registered_ha - 1) <= MAX_AREA_GAP:
+                layer = best
+                print(f"  Using the layer '{layer}', whose area matches the registered area.")
+        if layer is None:
+            print('  Using all of them together (use --kml-layer NAME to pick one).')
+    report = boundary_report(kml, layer=layer)
     print(f"  {report['area_ha']:,.0f} ha in {report['polygons']} polygon(s), {report['holes']} holes, "
           f"{report['vertices']:,} vertices")
     print(f"  2 km cells mostly (90%) inside: {report['cells_mostly_inside']}, covering "
           f"{report['cover_by_those_cells']:.0%} of the project")
-    if a.registered_ha and abs(report['area_ha'] / a.registered_ha - 1) > MAX_AREA_GAP:
-        print(f"  WARNING: the boundary is {report['area_ha']:,.0f} ha but the registered area is "
-              f"{a.registered_ha:,.0f} ha. Is this the right file?")
+    if a.registered_ha:
+        ratio = report['area_ha'] / a.registered_ha
+        if ratio > MAX_AREA_RATIO or ratio < 1 / MAX_AREA_RATIO:
+            problems.append(f"the boundary is {report['area_ha']:,.0f} ha but the registered area is "
+                            f"{a.registered_ha:,.0f} ha ({ratio:,.1f} times). It is probably a reference "
+                            'region or project zone, not the project area. Use the project-area file')
+        elif abs(ratio - 1) > MAX_AREA_GAP:
+            print(f"  WARNING: the boundary is {report['area_ha']:,.0f} ha but the registered area is "
+                  f"{a.registered_ha:,.0f} ha. Is this the right file?")
+    if report['area_ha'] > MAX_AREA_HA:
+        problems.append(f"the boundary is {report['area_ha']:,.0f} ha, above the {MAX_AREA_HA:,} ha the "
+                        'pipeline can handle')
     if report['cells_mostly_inside'] < MIN_PROJECT_CELLS:
         problems.append(f"only {report['cells_mostly_inside']} grid cells lie mostly inside the boundary "
                         f"(need {MIN_PROJECT_CELLS}); a boundary of thin fragments cannot be matched")
 
     region = a.region
     if not a.no_ee:
-        rings = load_boundary(kml)
+        rings = load_boundary(kml, layer)
         print('Checking alert coverage and forest cover with Earth Engine ...')
         if region is None:
             region, counts = detect_radd_geography(rings)
@@ -291,6 +317,11 @@ def process(a):
         print('\nProblems:')
         for problem in problems:
             print('  -', problem)
+    if getattr(a, 'check_only', False):
+        print('\nCheck only, nothing was added. ' + ('This project would be refused (unless added with --force).'
+                                                    if problems else 'This project would be accepted.'))
+        return
+    if problems:
         if getattr(a, 'interactive', False):
             if not confirm('Add the project anyway?'):
                 raise SystemExit('Not added.')
@@ -301,7 +332,7 @@ def process(a):
              'claim_per_year': a.claim}
     for key, value in (('registered_ha', a.registered_ha), ('carbon_tc_per_ha', a.carbon_tc_per_ha),
                        ('projected_ha', a.projected_ha), ('projected_tco2e', a.projected_tco2e),
-                       ('radd_geography', region), ('min_forest_share', a.min_forest_share),
+                       ('kml_layer', layer), ('radd_geography', region), ('min_forest_share', a.min_forest_share),
                        ('search_radius_m', a.search_radius_km and a.search_radius_km * 1000)):
         if value is not None:
             entry[key] = value
@@ -348,11 +379,13 @@ def main():
     parser.add_argument('--carbon-tc-per-ha', type=float, help='assumed carbon density, tC per ha')
     parser.add_argument('--projected-ha', type=float, help="the project's projected avoided deforestation, ha")
     parser.add_argument('--projected-tco2e', type=float, help="the project's projected avoided emissions, tCO2e")
+    parser.add_argument('--kml-layer', help='which layer (folder) of the KML is the project area')
     parser.add_argument('--region', choices=['sa', 'africa', 'asia', 'ca'],
                         help='RADD tile set (detected when not given)')
     parser.add_argument('--search-radius-km', type=float, help='fixed search radius (widened automatically if not set)')
     parser.add_argument('--min-forest-share', type=float, help='cells with less forest are dropped (default 0.5)')
     parser.add_argument('--no-ee', action='store_true', help='skip the Earth Engine checks')
+    parser.add_argument('--check-only', action='store_true', help='run the checks and stop, adding nothing')
     parser.add_argument('--force', action='store_true', help='add the project even if a check fails')
     parser.add_argument('--run', action='store_true', help='run the whole pipeline afterwards')
     parser.add_argument('--publish', action='store_true', help='with --run: also write the status to the NFT')

@@ -111,9 +111,12 @@ def yearly_loss_rate(loss, forest, years):
 
 
 def boundary_geometry(coordinates):
-    """Earth Engine geometry for one ring of (lon, lat) pairs or for a list of rings."""
+    """Earth Engine geometry for one ring of (lon, lat) pairs or for a list of rings. A very
+    detailed boundary is simplified first (Earth Engine limits the size of a request)."""
     if isinstance(coordinates[0][0], (int, float)):                # a single ring
         return ee.Geometry.Polygon(coordinates)
+    from geo import simplified_rings
+    coordinates = simplified_rings(coordinates)
     if len(coordinates) == 1:
         return ee.Geometry.Polygon(coordinates[0])
     return ee.Geometry.MultiPolygon([[ring] for ring in coordinates])

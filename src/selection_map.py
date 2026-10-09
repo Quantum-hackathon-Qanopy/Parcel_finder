@@ -30,11 +30,10 @@ from matplotlib import colormaps, colors
 
 from config import (BUFFER_KM, CELL_KM, KML_FILE, OUTPUT_DIR, QAOA_JSON, SEARCH_KM,
                     SELECTED_CSV)
-from geo import grown_boundary, init_earth_engine, load_boundary, square_bounds
+from geo import grown_boundary, init_earth_engine, load_boundary, load_protected, square_bounds
 from select_parcels import POOL_SIZE, best_matches, load_pool
 
 MAP_HTML = OUTPUT_DIR / 'selection_map.html'
-PROTECTED_GEOJSON = OUTPUT_DIR / 'protected_areas.geojson'
 SATELLITE = ('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/'
              'MapServer/tile/{z}/{y}/{x}')
 
@@ -136,40 +135,6 @@ def add_forest_layers(m, ee):
     return tiles
 
 
-def polygons_only(geojson):
-    """Replace geometry collections by their polygons (the map cannot label collections)."""
-    from shapely.geometry import mapping, shape
-    from shapely.ops import unary_union
-    kept = []
-    for feature in geojson['features']:
-        geom = shape(feature['geometry'])
-        parts = getattr(geom, 'geoms', [geom])
-        polys = [g for g in parts if g.geom_type in ('Polygon', 'MultiPolygon')]
-        if polys:
-            kept.append({'type': 'Feature', 'properties': feature['properties'],
-                         'geometry': mapping(unary_union(polys))})
-    return {'type': 'FeatureCollection', 'features': kept}
-
-
-def load_protected(ee):
-    """Protected areas around the project as GeoJSON: from the cache, else Earth Engine."""
-    if PROTECTED_GEOJSON.exists():
-        with open(PROTECTED_GEOJSON) as fh:
-            return json.load(fh)
-    if ee is None:
-        return None
-    from parcel_finder import PROTECTED
-    from parcel_finder import boundary_geometry
-    project = boundary_geometry(load_boundary())
-    region = project.buffer(SEARCH_KM * 1000).difference(project.buffer(BUFFER_KM * 1000))
-    areas = ee.FeatureCollection(PROTECTED).filterBounds(region).map(
-        lambda f: ee.Feature(f.geometry().simplify(200), {'name': f.get('NAME')}))
-    geojson = polygons_only(areas.getInfo())
-    with open(PROTECTED_GEOJSON, 'w') as fh:
-        json.dump(geojson, fh)
-    return geojson
-
-
 def main():
     data = load_pool(pool_size=10 ** 9)             # every candidate in candidates.csv
     if data['project_lonlat'] is None:
@@ -242,7 +207,7 @@ def main():
     # ---- protected areas
     protected = None
     try:
-        protected = load_protected(ee)
+        protected = load_protected()
     except Exception as err:
         print(f'Protected areas not loaded ({err})')
     if protected:

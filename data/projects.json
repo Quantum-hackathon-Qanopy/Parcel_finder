@@ -28,5 +28,15 @@
     "registered_ha": 134730,
     "carbon_tc_per_ha": 150,
     "radd_geography": "asia"
+  },
+  "verra-4387-bolivia-plurinational-state-of-la-paz-department-abel-iturralde-province": {
+    "name": "Verra 4387 (Bolivia (Plurinational State of), La Paz Department / Abel Iturralde province)",
+    "kml": "PachaPrometida.kml",
+    "start": "2021-06-15",
+    "end": "2051-06-14",
+    "claim_per_year": 367619.0,
+    "registered_ha": 11500.0,
+    "carbon_tc_per_ha": 150.0,
+    "radd_geography": "sa"
   }
 }

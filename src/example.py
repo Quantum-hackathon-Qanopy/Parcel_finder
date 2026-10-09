@@ -77,8 +77,11 @@ def search(rings):
         print(f'Searching for parcels within {radius / 1000:g} km (this can take several minutes)...')
         try:
             finder.fit(N_CANDIDATES)
-        except RuntimeError as err:                           # for example too many eligible cells
+        except Exception as err:                              # too many cells, or Earth Engine timing out
             if best is None:
+                if 'timed out' in str(err).lower():
+                    raise SystemExit('Earth Engine timed out. The project (or the search area around it) is '
+                                     'too large for one request. Check that the boundary is the project area.')
                 raise
             print(f'  Stopped widening: {err}')
             break

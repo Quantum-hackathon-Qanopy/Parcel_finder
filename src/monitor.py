@@ -44,12 +44,12 @@ import numpy as np
 import nft_status
 import snapshot as snap
 from config import (BUFFER_KM, CARBON_SOURCE, CARBON_TCO2E_PER_HA, CELL_HA, CELL_KM,
-                    CLAIMED_TCO2E_PER_YEAR, OUTPUT_DIR, OUTPUT_ROOT, PROJECT, PROJECTS,
+                    CLAIMED_TCO2E_PER_YEAR, DASHBOARD_HTML, OUTPUT_DIR, OUTPUT_ROOT, PROJECT, PROJECTS,
                     PROJECT_AVOIDED_HA, PROJECT_AVOIDED_TCO2E, PROJECT_END, PROJECT_NAME,
                     PROJECT_SLUG, PROJECT_START, RADD_GEOGRAPHY, SEARCH_KM, read_registry,
                     write_project)
 from geo import (RADD_ASSET as RADD, detect_radd_geography, grown_boundary, init_earth_engine,
-                 load_boundary, square_bounds)
+                 load_boundary, load_protected, square_bounds)
 from parcel_finder import HANSEN, boundary_geometry
 from select_parcels import SEED
 
@@ -66,7 +66,6 @@ FOREST_THRESHOLD = 30                         # canopy cover (%) that counts as 
 RAW_JSON = OUTPUT_DIR / 'monitoring_raw.json'
 LOG_CSV = OUTPUT_DIR / 'monitoring_log.csv'
 RUNS_CSV = OUTPUT_DIR / 'monitoring_runs.csv'
-DASHBOARD_HTML = OUTPUT_ROOT / 'monitoring_dashboard.html'          # one page for all projects
 PAYLOAD_JSON = OUTPUT_DIR / 'dashboard_payload.json'      # this project's part of the dashboard
 
 
@@ -323,14 +322,15 @@ def zones_payload():
 
 
 def protected_payload():
-    """Protected areas near the project (cached by selection_map.py) for the dashboard map, as
-    simplified GeoJSON, or None when they have not been downloaded for this project."""
-    path = OUTPUT_DIR / 'protected_areas.geojson'
-    if not path.exists():
-        return None
+    """Protected areas near the project for the dashboard map, as simplified GeoJSON. They are
+    downloaded and cached on first use. None means they could not be fetched (no Earth Engine
+    login); an empty collection means there are none in the search area."""
     from shapely.geometry import mapping, shape
+    data = load_protected()
+    if data is None:
+        return None
     features = []
-    for feature in json.loads(path.read_text(encoding='utf-8'))['features']:
+    for feature in data['features']:
         geometry = shape(feature['geometry']).simplify(0.0005, preserve_topology=True)
         if not geometry.is_empty:
             features.append({'type': 'Feature', 'properties': {'name': feature['properties'].get('name')},

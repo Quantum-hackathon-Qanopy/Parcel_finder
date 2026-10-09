@@ -71,6 +71,34 @@
   .tab { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px;
          padding: 6px 14px; cursor: pointer; font-size: 14px; }
   .tab.on { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .addbtn { border: 1px solid #1f6feb; background: #1f6feb; color: #fff; border-radius: 8px; padding: 8px 16px;
+            font-size: 14px; cursor: pointer; margin-top: 4px; }
+  dialog { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px;
+           width: min(720px, 94vw); max-height: 92vh; padding: 0; }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+  .dlg { padding: 18px 20px 20px; overflow-y: auto; max-height: 90vh; }
+  .dlg h2 { font-size: 18px; margin: 0 0 4px; }
+  .dlg label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 3px; }
+  .dlg input[type=text], .dlg input[type=number], .dlg input[type=date], .dlg textarea {
+    width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg);
+    color: var(--ink); font: inherit; }
+  .dlg textarea { min-height: 70px; resize: vertical; }
+  .dlg .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dlg .opt { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; color: var(--ink); margin: 6px 0; }
+  .dlg .opt input { margin-top: 3px; }
+  .dlg .sub2 { margin: 6px 0 0 24px; }
+  .dlg .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .dlg button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px;
+                padding: 8px 14px; cursor: pointer; font-size: 14px; }
+  .dlg button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .dlg button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dlg .warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px;
+               font-size: 13px; margin: 8px 0; }
+  .dlg .err { background: #fde2e0; color: #7a1d14; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 8px 0; }
+  .dlg pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 12px;
+             max-height: 280px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0; }
+  #jobBanner { display: none; }
 </style>
 </head>
 <body>
@@ -90,7 +118,11 @@
   });
 </script>
 <main>
-  <h1 id="title">Forest monitoring</h1>
+  <div class="topbar">
+    <h1 id="title">Forest monitoring</h1>
+    <button class="addbtn" id="addBtn">+ Add project</button>
+  </div>
+  <div class="banner" id="jobBanner"></div>
   <div class="tabs" id="tabs"></div>
   <p class="sub" id="sub"></p>
   <div class="banner" id="banner"></div>
@@ -119,6 +151,45 @@
   </div>
   <p class="foot" id="foot"></p>
 </main>
+<dialog id="addDlg"><div class="dlg">
+  <h2>Add a project</h2>
+  <p class="hint">Upload the boundary and enter the project's facts. The pipeline checks it, finds comparison parcels, monitors it and, if you choose, publishes the status to the NFT. A run takes about 20 to 40 minutes.</p>
+  <div class="warn" id="noServer" style="display:none">This page was opened as a file, which cannot run the pipeline. Start the local server with <code>python src/dashboard_server.py</code> and use the address it prints (http://127.0.0.1:8765).</div>
+  <label for="pPaste">Paste the Verra project overview (optional, fills the fields below)</label>
+  <textarea id="pPaste" placeholder="Overview, Proponents, ... Acres/Hectares, 134730, Estimated Project Start Date, 03 May 2023, ..."></textarea>
+  <button type="button" id="fillBtn" style="margin-top:6px">Fill the form from this text</button>
+  <label for="pKml">Boundary file (.kml)</label>
+  <input type="file" id="pKml" accept=".kml">
+  <div class="row">
+    <div><label for="pName">Project name</label><input type="text" id="pName"></div>
+    <div><label for="pSlug">Short name (letters, digits, -)</label><input type="text" id="pSlug"></div>
+  </div>
+  <div class="row">
+    <div><label for="pStart">Project start</label><input type="date" id="pStart"></div>
+    <div><label for="pEnd">End of the crediting period</label><input type="date" id="pEnd"></div>
+  </div>
+  <div class="row">
+    <div><label for="pClaim">Projected avoided emissions per year (tCO2e)</label><input type="number" id="pClaim" min="0" step="any"></div>
+    <div><label for="pArea">Registered area in hectares (optional)</label><input type="number" id="pArea" min="0" step="any"></div>
+  </div>
+  <label>Carbon density, for tCO2e figures and the NFT status</label>
+  <div class="opt"><input type="radio" name="dens" id="dNone" value="none"><label for="dNone" style="margin:0;color:inherit">None for now: hectares only, no NFT status</label></div>
+  <div class="opt"><input type="radio" name="dens" id="dAssume" value="assumption" checked><label for="dAssume" style="margin:0;color:inherit">An assumption: tons of carbon per hectare</label></div>
+  <div class="sub2" id="subAssume"><input type="number" id="pTc" value="150" min="0" step="any"></div>
+  <div class="opt"><input type="radio" name="dens" id="dProj" value="projection"><label for="dProj" style="margin:0;color:inherit">The project's own projection (avoided hectares and tCO2e over its life)</label></div>
+  <div class="sub2 row" id="subProj" style="display:none"><input type="number" id="pProjHa" placeholder="avoided hectares" min="0" step="any"><input type="number" id="pProjCo2" placeholder="avoided tCO2e" min="0" step="any"></div>
+  <div class="opt"><input type="checkbox" id="pPublish"><label for="pPublish" style="margin:0;color:inherit">Publish the result to the NFT when the run finishes. This is a public, permanent transaction on a test network.</label></div>
+  <div class="opt"><input type="checkbox" id="pForce"><label for="pForce" style="margin:0;color:inherit">Add the project even if the checks find a problem</label></div>
+  <div class="err" id="formErr" style="display:none"></div>
+  <div class="actions">
+    <button type="button" id="checkBtn">Check only</button>
+    <button type="button" class="primary" id="runBtn">Add and run</button>
+    <button type="button" id="closeBtn">Close</button>
+    <button type="button" class="primary" id="reloadBtn" style="display:none">Reload the dashboard</button>
+  </div>
+  <div id="jobState" class="hint" style="margin-top:10px"></div>
+  <pre id="jobLog" style="display:none"></pre>
+</div></dialog>
 <script>
 let ALL;
 try {
@@ -277,7 +348,7 @@ function render(D, index) {
   overlays['Project boundary'] = g.boundary;
   overlays[`Leakage buffer (${Z.buffer_km || 10} km, nothing is chosen inside)`] = g.buffer;
   overlays[`Search limit (${Z.search_km || 50} km)`] = g.search;
-  if (D.protected) overlays['Protected areas'] = g.protectedAreas;
+  if (D.protected) overlays[`Protected areas (${D.protected.features.length || 'none in the search area'})`] = g.protectedAreas;
   overlays['Project grid cells'] = g.cells;
   overlays['Comparison parcels'] = g.parcels;
   [g.buffer, g.cells, g.parcels, g.boundary].forEach(layer => layer.addTo(map));
@@ -348,6 +419,150 @@ function render(D, index) {
 }
 
 if (ALL.length) render(ALL[0], 0);
+</script>
+<script>
+// "Add project": upload a boundary and the project's facts to the local server, which runs the pipeline.
+(function () {
+  const S = window.QANOPY_SERVER || null, $ = id => document.getElementById(id);
+  const dlg = $('addDlg');
+  let timer = null, slugEdited = false;
+  const MONTHS = {jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12};
+
+  const slugify = t => t.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const isoDate = t => {                                   // 2023-05-03, 03 May 2023, 03/05/2023
+    t = t.trim();
+    let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return t;
+    m = t.match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})$/);
+    if (m && MONTHS[m[2].toLowerCase()]) return `${m[3]}-${String(MONTHS[m[2].toLowerCase()]).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    m = t.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/);
+    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+  };
+  const num = t => { const n = parseFloat(String(t).replace(/[,\s]/g, '')); return isNaN(n) ? null : n; };
+
+  function parseOverview(text) {                           // a label line, then its value line
+    const lines = text.split(/\r?\n/).map(l => l.trim());
+    const after = labels => {
+      for (const label of labels)
+        for (let i = 0; i < lines.length - 1; i++)
+          if (lines[i].toLowerCase() === label.toLowerCase()) {
+            const v = lines.slice(i + 1).find(x => x);
+            if (v && v !== '-') return v;
+          }
+      return null;
+    };
+    const out = {};
+    const claim = num(after(['Estimated Average Annual Emission Reductions and Carbon Dioxide Removals']) || '');
+    const area = num(after(['Acres/Hectares']) || '');
+    const start = isoDate(after(['Estimated Project Start Date', 'Crediting Period Duration Start Date']) || '');
+    const end = isoDate(after(['Crediting Period Duration End Date']) || '');
+    if (claim) out.claim = claim; if (area) out.area = area; if (start) out.start = start; if (end) out.end = end;
+    const id = text.match(/\/project\/(\d+)/), country = after(['Country']), region = after(['State/Province']);
+    if (id) out.name = `Verra ${id[1]}` + (country ? ` (${[country, region].filter(Boolean).join(', ')})` : '');
+    return out;
+  }
+
+  function showError(message) {
+    const box = $('formErr'); box.textContent = message; box.style.display = message ? 'block' : 'none';
+  }
+  function setBusy(busy) { ['checkBtn', 'runBtn'].forEach(id => { $(id).disabled = busy || !S; }); }
+
+  $('addBtn').onclick = () => dlg.showModal();
+  $('closeBtn').onclick = () => dlg.close();
+  $('reloadBtn').onclick = () => location.reload();
+  if (!S) { $('noServer').style.display = 'block'; setBusy(true); }
+  document.querySelectorAll('input[name=dens]').forEach(r => r.onchange = () => {
+    $('subAssume').style.display = $('dAssume').checked ? '' : 'none';
+    $('subProj').style.display = $('dProj').checked ? '' : 'none';
+  });
+  $('pSlug').oninput = () => { slugEdited = true; };
+  $('pName').oninput = () => { if (!slugEdited) $('pSlug').value = slugify($('pName').value); };
+  $('pKml').onchange = () => {
+    const f = $('pKml').files[0];
+    if (f && !$('pName').value) { $('pName').value = f.name.replace(/\.kml$/i, '').replace(/[_]+/g, ' '); $('pName').oninput(); }
+  };
+  $('fillBtn').onclick = () => {
+    const found = parseOverview($('pPaste').value);
+    if (found.name) { $('pName').value = found.name; slugEdited = false; $('pSlug').value = slugify(found.name); }
+    if (found.start) $('pStart').value = found.start;
+    if (found.end) $('pEnd').value = found.end;
+    if (found.claim) $('pClaim').value = found.claim;
+    if (found.area) $('pArea').value = found.area;
+    showError(Object.keys(found).length ? '' : 'Nothing usable was found in that text.');
+  };
+
+  function readFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('The file could not be read'));
+      reader.readAsText(file);
+    });
+  }
+
+  async function submit(checkOnly) {
+    showError('');
+    const file = $('pKml').files[0];
+    if (!file) return showError('Choose a boundary .kml file first.');
+    setBusy(true);
+    try {
+      const body = {
+        kml_name: file.name, kml_text: await readFile(file), slug: $('pSlug').value, name: $('pName').value,
+        start: $('pStart').value, end: $('pEnd').value, claim: $('pClaim').value, registered_ha: $('pArea').value,
+        density: document.querySelector('input[name=dens]:checked').value, carbon_tc_per_ha: $('pTc').value,
+        projected_ha: $('pProjHa').value, projected_tco2e: $('pProjCo2').value,
+        publish: $('pPublish').checked, allow_problems: $('pForce').checked, check_only: checkOnly,
+      };
+      if (!checkOnly && body.publish && !confirm('Publish to the NFT when the run finishes? This is a public, permanent transaction on the test network.')) {
+        setBusy(false); return;
+      }
+      const response = await fetch('/api/add', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Token': S.token},
+                                                body: JSON.stringify(body)});
+      const result = await response.json();
+      if (!response.ok) { showError(result.error || 'The request failed.'); setBusy(false); return; }
+      localStorage.setItem('qanopyJob', result.job);
+      watch(result.job);
+    } catch (err) { showError(String(err.message || err)); setBusy(false); }
+  }
+  $('checkBtn').onclick = () => submit(true);
+  $('runBtn').onclick = () => submit(false);
+
+  function watch(jobId) {
+    clearInterval(timer);
+    $('jobLog').style.display = 'block'; $('reloadBtn').style.display = 'none';
+    const poll = async () => {
+      const r = await fetch('/api/jobs/' + jobId); if (!r.ok) { clearInterval(timer); return; }
+      const job = await r.json(), log = $('jobLog');
+      const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+      log.textContent = job.log; if (atEnd) log.scrollTop = log.scrollHeight;
+      const mins = Math.floor(job.seconds / 60);
+      if (job.state === 'running') {
+        $('jobState').textContent = `Running for ${mins} min ${job.seconds % 60} s. You can close this window; the run continues.`;
+        return;
+      }
+      clearInterval(timer); setBusy(false); localStorage.removeItem('qanopyJob');
+      $('jobBanner').style.display = 'none';
+      if (job.state === 'finished') {
+        $('jobState').textContent = job.check_only ? 'Check finished, nothing was added.' : 'Finished. Reload the dashboard to see the project.';
+        if (!job.check_only) $('reloadBtn').style.display = '';
+      } else {
+        $('jobState').textContent = 'The run stopped with an error. The last lines above say why.';
+      }
+    };
+    poll(); timer = setInterval(poll, 2500);
+  }
+
+  // a run started before a page reload keeps going on the server; pick it up again
+  const saved = localStorage.getItem('qanopyJob');
+  if (S && saved) fetch('/api/jobs/' + saved).then(r => r.ok ? r.json() : null).then(job => {
+    if (!job || job.state !== 'running') { localStorage.removeItem('qanopyJob'); return; }
+    const banner = $('jobBanner');
+    banner.innerHTML = `A project (<b>${job.slug}</b>) is being added in the background. <a href="#" id="showJob">Show progress</a>`;
+    banner.style.display = 'block';
+    $('showJob').onclick = e => { e.preventDefault(); setBusy(true); dlg.showModal(); watch(saved); };
+  });
+})();
 </script>
 </body>
 </html>

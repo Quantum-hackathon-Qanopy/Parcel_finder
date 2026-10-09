@@ -22,10 +22,17 @@ import sys
 from datetime import date
 from pathlib import Path
 
+for _stream in (sys.stdout, sys.stderr):                 # names in other alphabets must not crash a Windows console
+    try:
+        _stream.reconfigure(errors='replace')
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent          # repository root
 DATA_DIR = ROOT / 'data'                                # input files
 OUTPUT_ROOT = ROOT / 'outputs'                          # everything the scripts generate
 OUTPUT_ROOT.mkdir(exist_ok=True)
+DASHBOARD_HTML = OUTPUT_ROOT / 'monitoring_dashboard.html'   # the one dashboard page for all projects
 
 # --------------------------------------------------------------------------- projects
 # data/projects.json, one entry per project (add_project.py writes it). Fields:
@@ -34,7 +41,8 @@ OUTPUT_ROOT.mkdir(exist_ok=True)
 #   the carbon density, one of: carbon_tc_per_ha (an assumption, tons of carbon per hectare, times
 #   44/12 to give tCO2e) or projected_ha with projected_tco2e (the project's own projection, from
 #   which the density is derived). With neither, only hectares are reported (no tCO2e, no NFT);
-#   optional: radd_geography ('sa', 'africa', 'asia' or 'ca'; detected when missing),
+#   optional: kml_layer (which folder of a multi-layer KML is the project area),
+#   radd_geography ('sa', 'africa', 'asia' or 'ca'; detected when missing),
 #   search_radius_m (widened automatically when missing), min_forest_share (0.5 when missing).
 PROJECTS_FILE = DATA_DIR / 'projects.json'
 
@@ -52,6 +60,7 @@ def _project(entry):
             'registered_ha': entry.get('registered_ha'),
             'projected_ha': entry.get('projected_ha'), 'projected_tco2e': entry.get('projected_tco2e'),
             'tco2e_per_ha': density, 'density_source': source if density else None,
+            'kml_layer': entry.get('kml_layer'),
             'radd_geography': entry.get('radd_geography'),
             'search_radius_m': entry.get('search_radius_m'),
             'min_forest_share': entry.get('min_forest_share')}
@@ -102,6 +111,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 PROJECT_NAME = PROJECT['name']
 RADD_GEOGRAPHY = PROJECT['radd_geography']        # None until detected (monitor.py or add_project.py)
 KML_FILE = DATA_DIR / PROJECT['kml'] if PROJECT['kml'] else None
+KML_LAYER = PROJECT['kml_layer']                  # None: every layer with polygons is used
 PROJECT_START = PROJECT['start']
 PROJECT_END = PROJECT['end']
 PROJECT_START_YEAR = PROJECT_START.year      # features use data from before this year
@@ -192,3 +202,4 @@ SELECTED_CSV = OUTPUT_DIR / 'selected_parcels.csv'           # written by select
 MATCHES_CSV = OUTPUT_DIR / 'selected_matches.csv'
 QAOA_JSON = OUTPUT_DIR / 'qaoa_result.json'
 SNAPSHOT_JSON = OUTPUT_DIR / 'snapshot.json'                 # written by snapshot.py
+PROTECTED_GEOJSON = OUTPUT_DIR / 'protected_areas.geojson'   # protected areas near the project (cached)
