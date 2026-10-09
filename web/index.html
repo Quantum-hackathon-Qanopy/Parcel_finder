@@ -5,22 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Qanopy — Public verification for forest carbon credits</title>
 <meta name="description" content="An open, independently checkable way to see whether a forest carbon credit project is delivering what it claims.">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 <style>
-  /* Palette taken from src/monitor_dashboard.html so this page and the
-     dashboard read as one site, in both light and dark mode. */
+  /* Dark is the house palette. These are the dark-mode values from
+     src/monitor_dashboard.html, so the site and the dashboard agree. */
   :root {
-    --bg: #f6f7f4; --card: #ffffff; --ink: #1d2a22; --muted: #5b6a61; --line: #dfe4de;
-    --accent: #d98324; --accent-ink: #8f4a1c; --green: #1b7f5a;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #141a16; --card: #1d2620; --ink: #e8efe9; --muted: #9bb0a3; --line: #2f3d34;
-      --accent: #f0a851; --accent-ink: #f0a851; --green: #4fd1a0;
-    }
+    color-scheme: dark;
+    --bg: #141a16; --card: #1d2620; --ink: #e8efe9; --muted: #9bb0a3; --line: #2f3d34;
+    --accent: #f0a851; --accent-ink: #f0a851; --green: #4fd1a0;
   }
   * { box-sizing: border-box; }
   body {
