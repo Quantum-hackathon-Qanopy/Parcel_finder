@@ -53,9 +53,11 @@ def all_state_costs(problem):
 
 
 # ---------------------------------------------------------------------- circuit
-def build_circuit(problem, layers, load_start_state=True):
+def build_circuit(problem, layers, load_start_state=True, start='dicke'):
     """Parametrised QAOA circuit. Returns (circuit, gammas, betas, scale).
-    load_start_state=False leaves out the simulator-only state loading."""
+    start='dicke' loads the equal superposition directly (simulator only);
+    start='basis' begins with the first K parcels set (an arbitrary guess), which needs only
+    X gates and so also runs on a real device. load_start_state=False leaves out the state preparation."""
     n = problem.n
     h, J, _ = ising_terms(problem.A)
     costs, valid = all_state_costs(problem)
@@ -64,8 +66,11 @@ def build_circuit(problem, layers, load_start_state=True):
     gammas = [Parameter(f'g{i}') for i in range(layers)]
     betas = [Parameter(f'b{i}') for i in range(layers)]
     qc = QuantumCircuit(n)
-    if load_start_state:
+    if load_start_state and start == 'dicke':
         qc.append(SetStatevector(dicke_amplitudes(n, problem.k)), range(n))
+    elif load_start_state:
+        for q in range(problem.k):
+            qc.x(q)
     ring = [(i, (i + 1) % n) for i in range(n)]
     for g, b in zip(gammas, betas):
         for i in range(n):
@@ -88,7 +93,7 @@ def dicke_amplitudes(n, k):
 
 
 # ------------------------------------------------------------------------ run
-def run_qaoa(problem, layers=1, seed=0, n_starts=4, maxiter=120, shots=1000):
+def run_qaoa(problem, layers=1, seed=0, n_starts=4, maxiter=120, shots=1000, start='dicke'):
     """Tune the angles on a statevector simulator and report how good the result is."""
     if problem.n > MAX_QUBITS:
         raise ValueError(f'{problem.n} qubits is too many to simulate (limit {MAX_QUBITS})')
@@ -99,7 +104,7 @@ def run_qaoa(problem, layers=1, seed=0, n_starts=4, maxiter=120, shots=1000):
     mean_random = valid_costs.mean()
     optimal_states = np.flatnonzero(valid & np.isclose(costs, best_cost))
 
-    qc, gammas, betas, _ = build_circuit(problem, layers)
+    qc, gammas, betas, _ = build_circuit(problem, layers, start=start)
     sim = AerSimulator(method='statevector')
     measured = qc.copy()
     measured.save_statevector()

@@ -1,60 +1,29 @@
-"""Find comparison parcels for a project and show them on a map.
+"""Find comparison parcels for a project (step 1 of 3; see README).
 
 1. Load the project boundary from a KML file.
 2. Find well-spaced parcels that together resemble every part of the project, using
    only information from before the project start year (see parcel_finder.py).
 3. Print a short quality report and save the results as CSV/JSON files.
-4. Build an interactive map and open it in the browser.
+   Then run select_parcels.py and selection_map.py (the map).
 """
 
 import csv
 import json
-import webbrowser
-from pathlib import Path
 
-import ee
-import geopandas as gpd
-
-from map_view import build_map
+from config import (BUFFER_M, CANDIDATES_CSV, CELL_SIZE_M, KML_FILE, PROFILE_JSON,
+                    PROJECT_CELLS_CSV, PROJECT_START_YEAR, SEARCH_RADIUS_M)
+from geo import init_earth_engine, load_boundary
 from parcel_finder import FindParcels
 
 # ---------------------------------------------------------------- settings
-ROOT = Path(__file__).resolve().parent.parent   # repository root
-DATA_DIR = ROOT / 'data'
-OUTPUT_DIR = ROOT / 'outputs'
-OUTPUT_DIR.mkdir(exist_ok=True)
-EE_PROJECT = 'ultrahack-project'     # your Google Cloud project with Earth Engine enabled
-KML_FILE = DATA_DIR / 'ALGAR_limite_fazenda_pacaja_v2_MS_17012019.shp.kml'
-PROJECT_START_YEAR = 2015            # PLACEHOLDER: replace with the real project start year
+# Project settings (boundary file, start year, cell size, buffer) are in config.py.
 N_CANDIDATES = 200                   # how many parcels to keep
-CELL_SIZE_M = 2000                   # parcel side length in metres (2000 m = 400 ha)
-BUFFER_M = 10000                     # leakage buffer around the project, in metres
 MIN_SPACING_KM = 6.0                 # minimum distance between parcel centres (0 = off)
 N_NEAREST = 3                        # project cells each candidate is compared with
 RUN_RING_TEST = True                 # print loss rates in rings around the project
 
-CANDIDATES_CSV = OUTPUT_DIR / 'candidates.csv'
-PROJECT_CELLS_CSV = OUTPUT_DIR / 'project_cells.csv'
-PROFILE_JSON = OUTPUT_DIR / 'project_profile.json'
-MAP_HTML = OUTPUT_DIR / 'demo_map.html'
-
 
 # ------------------------------------------------------------------- steps
-def init_earth_engine():
-    """Start Earth Engine; log in first if this machine has no saved login."""
-    try:
-        ee.Initialize(project=EE_PROJECT)
-    except Exception:
-        ee.Authenticate()
-        ee.Initialize(project=EE_PROJECT)
-
-
-def load_boundary(kml_file):
-    """Outer boundary of the first polygon in the KML, as (lon, lat) pairs."""
-    ring = gpd.read_file(kml_file, driver='KML').geometry.iloc[0].exterior.coords
-    return [(c[0], c[1]) for c in ring]
-
-
 def print_report(finder):
     """Summary of the result: how close is the chosen set to the project?"""
     cells = finder.candidates
@@ -118,7 +87,8 @@ def main():
     init_earth_engine()
     finder = FindParcels(
         load_boundary(KML_FILE), start_year=PROJECT_START_YEAR, buffer_m=BUFFER_M,
-        cell_size_m=CELL_SIZE_M, min_spacing_km=MIN_SPACING_KM, n_nearest=N_NEAREST)
+        search_radius_m=SEARCH_RADIUS_M, cell_size_m=CELL_SIZE_M,
+        min_spacing_km=MIN_SPACING_KM, n_nearest=N_NEAREST)
 
     print('Searching for parcels (this can take several minutes)...')
     finder.fit(N_CANDIDATES)
@@ -131,10 +101,6 @@ def main():
 
     save_results(finder)
     print(f'\nSaved {CANDIDATES_CSV}, {PROJECT_CELLS_CSV} and {PROFILE_JSON}')
-
-    build_map(finder).to_html(MAP_HTML)
-    print(f'Saved {MAP_HTML}')
-    webbrowser.open(Path(MAP_HTML).resolve().as_uri())
 
 
 if __name__ == '__main__':

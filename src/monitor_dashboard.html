@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forest Monitoring</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --ink: #1d2a22; --muted: #5b6a61; --line: #dfe4de;
+    --project: #c0392b; --parcels: #1b7f5a; --band: rgba(27, 127, 90, 0.16);
+    --qae: #5b3fd1; --mc: #d98324; --boot: #1b7f5a; --warn-bg: #fff4d6; --warn-ink: #6b4a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141a16; --card: #1d2620; --ink: #e8efe9; --muted: #9bb0a3; --line: #2f3d34;
+      --project: #ff7a68; --parcels: #4fd1a0; --band: rgba(79, 209, 160, 0.18);
+      --qae: #a994ff; --mc: #f0a851; --boot: #4fd1a0; --warn-bg: #3a3112; --warn-ink: #f3dd9a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+           margin-bottom: 16px; }
+  .card, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+                  padding: 14px 16px; }
+  .card .label { color: var(--muted); font-size: 13px; }
+  .card .value { font-size: 26px; font-weight: 650; margin: 2px 0; }
+  .card .note { color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 12px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .panel .hint { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+  .chart { position: relative; height: 280px; }
+  .wide { grid-column: 1 / -1; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .track { position: relative; height: 12px; background: var(--line); border-radius: 6px; min-width: 160px; }
+  .bar { position: absolute; top: 0; height: 12px; border-radius: 6px; opacity: 0.85; }
+  .tick { position: absolute; top: -3px; width: 2px; height: 18px; background: var(--ink); }
+  #map { height: 460px; border-radius: 8px; border: 1px solid var(--line); }
+  .controls { display: flex; gap: 10px; align-items: center; margin: 8px 0 0; font-size: 14px; }
+  .controls input[type=range] { flex: 1; }
+  .controls button { border: 1px solid var(--line); background: var(--card); color: var(--ink);
+                     border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-top: 6px;
+            align-items: center; }
+  .ramp { width: 160px; height: 10px; border-radius: 5px;
+          background: linear-gradient(to right, #ffffb2, #fd8d3c, #bd0026, #4a0010); }
+  .foot { color: var(--muted); font-size: 12.5px; margin-top: 16px; word-break: break-all; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="problem" style="display:none;background:#fde2e0;color:#7a1d14;padding:12px 16px;font:14px/1.5 system-ui,sans-serif"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+  // If anything fails, say why on the page instead of leaving it blank.
+  function problem(text) {
+    const box = document.getElementById('problem');
+    box.style.display = 'block';
+    box.innerHTML += '<div>' + text + '</div>';
+  }
+  window.addEventListener('error', e => problem('Script error: ' + (e.message || 'unknown')));
+  window.addEventListener('load', () => {
+    if (typeof Chart === 'undefined') problem('The chart library (Chart.js) could not be loaded. It comes from cdn.jsdelivr.net, so the page needs internet access and a viewer that runs scripts.');
+    if (typeof L === 'undefined') problem('The map library (Leaflet) could not be loaded from cdn.jsdelivr.net, so the map is missing.');
+  });
+</script>
+<main>
+  <h1>Forest monitoring: project against its comparison parcels</h1>
+  <p class="sub" id="sub"></p>
+  <div class="banner" id="banner"></div>
+  <div class="cards" id="cards"></div>
+  <div class="grid">
+    <div class="panel"><h2>Cumulative forest loss</h2>
+      <p class="hint">Share of forest area lost since monitoring started. Shaded: 5th to 95th percentile of the parcels.</p>
+      <div class="chart"><canvas id="rates"></canvas></div></div>
+    <div class="panel"><h2>Avoided loss</h2>
+      <p class="hint">Hectares of forest the project kept standing compared with the parcels. Shaded: 95% bootstrap interval.</p>
+      <div class="chart"><canvas id="avoided"></canvas></div></div>
+    <div class="panel wide"><h2>Where the loss happened</h2>
+      <p class="hint">Each square is a 2 km grid cell, coloured by the share of its forest lost so far. Comparison parcels have a blue outline; project cells are the small squares inside the project. Drag the slider or press play.</p>
+      <div id="map"></div>
+      <div class="controls"><button id="play">Play</button><input type="range" id="week" min="0" value="0"><span id="weekLabel"></span></div>
+      <div class="legend"><span>0%</span><span class="ramp"></span><span>10% or more</span>
+        <span id="mapStats"></span></div></div>
+    <div class="panel wide"><h2>One estimate, three ways to compute it</h2>
+      <p class="hint" id="estimatorHint"></p>
+      <table><thead><tr><th>Method</th><th>What the interval measures</th><th>Median (ha)</th><th>95% interval (ha)</th><th>Range</th></tr></thead>
+        <tbody id="estimators"></tbody></table></div>
+    <div class="panel wide"><h2>Avoided emissions against the claim</h2>
+      <p class="hint">The claim is pro-rated from the start of the monitored window. The carbon density is the one implied by the project's own projection.</p>
+      <div class="chart"><canvas id="co2"></canvas></div></div>
+  </div>
+  <p class="foot" id="foot"></p>
+</main>
+<script>
+let D;
+try {
+  D = JSON.parse(document.getElementById('data').textContent);
+} catch (e) {
+  problem('No data in this page. This file is the template. Run <code>python src/monitor.py</code> and open <code>outputs/monitoring_dashboard.html</code> in a browser.');
+  throw e;
+}
+const R = D.records, last = R[R.length - 1];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (x, d = 0) => x.toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
+const pct = (x, d = 2) => (100 * x).toFixed(d) + '%';
+
+document.getElementById('sub').textContent =
+  `Alerts from ${D.since} to the week of ${last.week_start}. Data retrieved ${D.retrieved.replace('T', ' ')} UTC.`;
+const P = D.project, years = (a, b) => (new Date(b) - new Date(a)) / 31557600000;
+document.getElementById('banner').innerHTML =
+  `<b>Carbon density:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha, the value implied by the project's own projection ` +
+  `(${fmt(P.projected_ha)} ha avoided = ${fmt(P.projected_tco2e)} tCO2e over 30 years). It is not measured here. ` +
+  `Project: ${P.start} to ${P.end}, claim ${fmt(P.claim_per_year)} tCO2e per year, compared over the monitored window only. ` +
+  `The last ${D.provisional_weeks} weeks are provisional because alerts are confirmed with a delay.`;
+
+const co2 = last.avoided_tco2, claim = last.claim_tco2;
+const cards = [
+  ['Avoided loss', fmt(last.avoided_ha) + ' ha',
+   `95% interval ${fmt(last.avoided_ci_lo)} to ${fmt(last.avoided_ci_hi)} ha`],
+  ['Project loss', pct(last.project_rate), `of ${fmt(D.project_forest_ha)} ha of forest`],
+  ['Comparison parcels', pct(last.parcel_rate_mean), `mean of ${D.snapshot.parcels} parcels`],
+  ['Avoided emissions', fmt(co2) + ' tCO2e', `${pct(co2 / claim, 1)} of the claim over the window (${fmt(claim)})`],
+  ['Avoided-loss rate', fmt(last.avoided_ha / years(D.since, last.week_start)) + ' ha/yr',
+   `measured over the window; the project projects ${fmt(P.projected_ha / years(P.start, P.end))} ha/yr`],
+  ['Project progress', pct(years(P.start, last.week_start) / years(P.start, P.end), 1),
+   `${years(P.start, last.week_start).toFixed(1)} of 30 years since ${P.start}; alerts cover the last ${years(D.since, last.week_start).toFixed(1)}`],
+];
+document.getElementById('cards').innerHTML = cards.map(c =>
+  `<div class="card"><div class="label">${c[0]}</div><div class="value">${c[1]}</div>` +
+  `<div class="note">${c[2]}</div></div>`).join('');
+
+const labels = R.map(r => r.week_start);
+const base = {pointRadius: 0, borderWidth: 2, tension: 0.15};
+const axes = (yTitle, cb) => ({
+  responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+  plugins: {legend: {labels: {color: css('--muted'), boxWidth: 14,
+    filter: i => !i.text.startsWith('_')}}},
+  scales: {x: {ticks: {color: css('--muted'), maxTicksLimit: 8}, grid: {display: false}},
+           y: {title: {display: true, text: yTitle, color: css('--muted')},
+               ticks: {color: css('--muted'), callback: cb}, grid: {color: css('--line')}}}});
+
+new Chart('rates', {type: 'line', data: {labels, datasets: [
+  {label: '_p95', data: R.map(r => 100 * r.parcel_rate_p95), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--band')},
+  {label: '_p05', data: R.map(r => 100 * r.parcel_rate_p05), borderWidth: 0, pointRadius: 0, fill: false},
+  {...base, label: 'Comparison parcels (mean)', data: R.map(r => 100 * r.parcel_rate_mean), borderColor: css('--parcels')},
+  {...base, label: 'Project', data: R.map(r => 100 * r.project_rate), borderColor: css('--project')},
+]}, options: axes('% of forest area lost', v => v + '%')});
+
+new Chart('avoided', {type: 'line', data: {labels, datasets: [
+  {label: '_hi', data: R.map(r => r.avoided_ci_hi), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--band')},
+  {label: '_lo', data: R.map(r => r.avoided_ci_lo), borderWidth: 0, pointRadius: 0, fill: false},
+  {...base, label: 'Avoided loss (ha)', data: R.map(r => r.avoided_ha), borderColor: css('--parcels')},
+]}, options: axes('hectares', v => fmt(v))});
+
+new Chart('co2', {type: 'line', data: {labels, datasets: [
+  {...base, label: 'Avoided emissions (tCO2)', data: R.map(r => r.avoided_tco2), borderColor: css('--parcels')},
+  {...base, label: 'Claim, pro-rated (' + fmt(P.claim_per_year) + ' tCO2e per year)', data: R.map(r => r.claim_tco2), borderColor: css('--muted'), borderDash: [6, 4]},
+]}, options: axes('tCO2', v => fmt(v))});
+
+// map of cumulative loss by square, with a week slider
+(function () {
+  const S = D.spatial, km = S.cell_km;
+  const map = L.map('map', {scrollWheelZoom: false});
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {attribution: 'Esri World Imagery', maxZoom: 17}).addTo(map);
+  const stops = [[255, 255, 178], [253, 141, 60], [189, 0, 38], [74, 0, 16]];
+  const colour = rate => {
+    const t = Math.min(rate / 0.10, 1) * (stops.length - 1), i = Math.min(Math.floor(t), stops.length - 2), f = t - i;
+    const c = stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  };
+  const box = q => {
+    const dlat = km / 2 / 111.0, dlon = dlat / Math.cos(q.lat * Math.PI / 180);
+    return [[q.lat - dlat, q.lon - dlon], [q.lat + dlat, q.lon + dlon]];
+  };
+  const layers = [];
+  const add = (items, parcel) => items.forEach(q => {
+    const r = L.rectangle(box(q), parcel
+      ? {color: '#4cc9f0', weight: 1.2, fillOpacity: 0.95}
+      : {color: '#222', weight: 0.4, fillOpacity: 0.8}).addTo(map);
+    r.bindTooltip('', {sticky: true});
+    layers.push({r, q, parcel});
+  });
+  add(S.cells, false); add(S.parcels, true);
+  const all = S.cells.concat(S.parcels);
+  map.fitBounds(L.latLngBounds(all.map(q => [q.lat, q.lon])).pad(0.1));
+  const slider = document.getElementById('week'), label = document.getElementById('weekLabel');
+  slider.max = R.length - 1; slider.value = R.length - 1;
+  const draw = i => {
+    layers.forEach(({r, q, parcel}) => {
+      const rate = q.cum[i] / q.forest_ha;
+      r.setStyle({fillColor: colour(rate)});
+      r.setTooltipContent((parcel ? 'Comparison parcel ' + q.id : 'Project cell') +
+        `<br>${(100 * rate).toFixed(2)}% of forest lost (${fmt(q.cum[i], 1)} ha)`);
+    });
+    label.textContent = 'Week of ' + R[i].week_start + (R[i].provisional ? ' (provisional)' : '');
+    document.getElementById('mapStats').textContent =
+      `Project ${pct(R[i].project_rate)} | parcels ${pct(R[i].parcel_rate_mean)}`;
+  };
+  slider.oninput = () => draw(+slider.value);
+  let timer = null;
+  document.getElementById('play').onclick = function () {
+    if (timer) { clearInterval(timer); timer = null; this.textContent = 'Play'; return; }
+    if (+slider.value >= +slider.max) slider.value = 0;
+    this.textContent = 'Pause';
+    timer = setInterval(() => {
+      slider.value = +slider.value + 2;
+      if (+slider.value >= +slider.max) { slider.value = slider.max; clearInterval(timer); timer = null; document.getElementById('play').textContent = 'Play'; }
+      draw(+slider.value);
+    }, 60);
+  };
+  draw(+slider.value);
+})();
+
+// estimator comparison at the newest week that has one
+const withEst = R.filter(r => r.estimators), e = withEst.length ? withEst[withEst.length - 1] : null;
+const body = document.getElementById('estimators');
+if (e) {
+  const est = e.estimators;
+  document.getElementById('estimatorHint').textContent =
+    `Week of ${e.week_start}. These intervals are not comparable as uncertainty. The bootstrap shows how much the answer ` +
+    `depends on which parcels were chosen (the real uncertainty). Monte Carlo and quantum amplitude estimation (a noiseless ` +
+    `simulation) show only the numerical error of computing the mean by sampling with ${fmt(est.evaluations)} evaluations; ` +
+    `exact averaging has none. Amplitude estimation is about ${fmt(((est.mc.interval[1]-est.mc.interval[0])/(est.qae.interval[1]-est.qae.interval[0])), 1)} ` +
+    `times tighter than Monte Carlo at the same budget, which is the quadratic speedup, but it improves a number that was never the bottleneck.`;
+  const rows = [
+    ['Classical: exact mean + bootstrap over the parcels', 'Which parcels were chosen', e.avoided_ha, [e.avoided_ci_lo, e.avoided_ci_hi], '--boot'],
+    ['Classical Monte Carlo, ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.mc.median, est.mc.interval, '--mc'],
+    ['Amplitude estimation (simulated), ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.qae.median, est.qae.interval, '--qae'],
+  ];
+  const lo = Math.min(...rows.map(r => r[3][0])), hi = Math.max(...rows.map(r => r[3][1]));
+  const span = Math.max(hi - lo, 1e-9), at = x => (100 * (x - lo) / span).toFixed(2);
+  body.innerHTML = rows.map(r =>
+    `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${fmt(r[2], 1)}</td>` +
+    `<td class="num">${fmt(r[3][0], 1)} to ${fmt(r[3][1], 1)}</td>` +
+    `<td><div class="track"><div class="bar" style="left:${at(r[3][0])}%;width:${Math.max(at(r[3][1]) - at(r[3][0]), 0.8)}%;background:${css(r[4])}"></div>` +
+    `<div class="tick" style="left:${at(e.avoided_ha)}%"></div></div></td></tr>`).join('');
+} else {
+  document.getElementById('estimatorHint').textContent = 'Run without --qae-every 0 to compare the estimators.';
+}
+
+document.getElementById('foot').innerHTML =
+  `Snapshot SHA-256 <code>${D.snapshot.sha256}</code> (created ${D.snapshot.created_at}, ` +
+  `${D.snapshot.parcels} parcels, ${D.snapshot.project_cells} project cells). ` +
+  'Source: RADD radar forest-disturbance alerts, confirmed class. Black tick: exact mean.';
+</script>
+</body>
+</html>

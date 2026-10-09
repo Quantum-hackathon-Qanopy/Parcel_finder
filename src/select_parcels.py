@@ -25,24 +25,13 @@ import itertools
 import json
 import math
 import os
-import sys
-from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))   # find qaoa.py
+from config import (CANDIDATES_CSV, MATCHES_CSV, PROFILE_JSON, PROJECT_CELLS_CSV, QAOA_JSON,
+                    SELECTED_CSV)
 
 # ------------------------------------------------------------------ settings
-ROOT = Path(__file__).resolve().parent.parent   # repository root
-DATA_DIR = ROOT / 'data'
-OUTPUT_DIR = ROOT / 'outputs'
-OUTPUT_DIR.mkdir(exist_ok=True)
-
-CANDIDATES_CSV = OUTPUT_DIR / 'candidates.csv'
-PROJECT_CELLS_CSV = OUTPUT_DIR / 'project_cells.csv'
-PROFILE_JSON = OUTPUT_DIR / 'project_profile.json'       # optional: gives the finder's feature spreads
-SELECTED_CSV = OUTPUT_DIR / 'selected_parcels.csv'
-MATCHES_CSV = OUTPUT_DIR / 'selected_matches.csv'        # each picked parcel and the project cell it matches
 
 K = 50                  # parcels to pick
 POOL_SIZE = 200         # use at most this many candidates (most similar first)
@@ -266,6 +255,15 @@ def make_problem(data, k):
                    data['lon'], data['lat'], k)
 
 
+def reduced_problem(data, full, size, k):
+    """A smaller problem on `size` candidates drawn from the pool (small enough for QAOA).
+    Returns (problem, row numbers of the drawn candidates)."""
+    sub = full.subset(size)
+    sdata = dict(data, features=data['features'][sub], delta=data['delta'][sub],
+                 lon=data['lon'][sub], lat=data['lat'][sub])
+    return make_problem(sdata, k), sub
+
+
 def best_matches(data, idx):
     """For each picked parcel, the project cell it resembles most.
     Returns (project cell row numbers, distances in spread units)."""
@@ -327,10 +325,7 @@ def main():
     # ---- reduced problem: small enough for a simulator or a real device
     print(f"\n2. Reduced problem: pick {SMALL_K} of {SMALL_POOL} (exact answer known)")
     from qaoa import run_qaoa            # imported here so step 1 works without Qiskit
-    sub = full.subset(SMALL_POOL)
-    sdata = dict(data, features=data['features'][sub], delta=data['delta'][sub],
-                 lon=data['lon'][sub], lat=data['lat'][sub])
-    small = make_problem(sdata, SMALL_K)
+    small, sub = reduced_problem(data, full, SMALL_POOL, SMALL_K)
     small_results = {
         'top-K by similarity': top_k_similarity(small),
         'greedy + swaps': greedy_swap(small),
@@ -338,8 +333,10 @@ def main():
         'exact (all sets)': exact_best(small),
     }
     print_comparison(small, small_results)
+    qaoa_runs = []
     for p in QAOA_LAYERS:
         out = run_qaoa(small, layers=p, seed=SEED)
+        qaoa_runs.append((p, out))
         print(f"\n  QAOA, {p} layer(s), {SMALL_POOL} qubits (simulator):")
         print(f"    probability of the optimal set      {out['p_optimal']:.4f}"
               f"   (random guess: {out['p_optimal_random']:.4f})")
@@ -350,6 +347,24 @@ def main():
         print(f"    two-qubit gates before routing: {out['two_qubit_gates']},"
               f" circuit depth: {out['depth']}")
         report_hardware_cost(small, p)
+    save_qaoa(data, sub, small_results['exact (all sets)'], qaoa_runs)
+
+
+def save_qaoa(data, sub, exact, runs):
+    """Write the reduced problem, its exact answer and each QAOA run, for the map."""
+    rows = [data['rows'][i] for i in sub]
+    result = {
+        'parcels': [{'id': r['id'], 'lon': float(r['lon']), 'lat': float(r['lat'])} for r in rows],
+        'exact': sorted(int(i) for i in exact),
+        'runs': [{'layers': p, 'best_sampled_set': sorted(out['best_sampled_set']),
+                  **{k: out[k] for k in ('ratio', 'ratio_random', 'p_optimal',
+                                         'p_optimal_random', 'best_sampled_cost',
+                                         'optimal_cost', 'two_qubit_gates', 'depth', 'shots')}}
+                 for p, out in runs],
+    }
+    with open(QAOA_JSON, 'w') as fh:
+        json.dump(result, fh, indent=2)
+    print(f"\n  Saved {QAOA_JSON}")
 
 
 def report_hardware_cost(problem, layers):

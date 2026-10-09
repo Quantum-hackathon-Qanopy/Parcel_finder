@@ -11,3 +11,4 @@ outputs/*
 # Local files
 .DS_Store
 .ipynb_checkpoints/
+!outputs/snapshot.json
