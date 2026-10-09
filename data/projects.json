@@ -1,0 +1,32 @@
+{
+  "algar": {
+    "name": "ALGAR Pacajá",
+    "kml": "ALGAR_limite_fazenda_pacaja_v2_MS_17012019.shp.kml",
+    "start": "2017-12-14",
+    "end": "2047-12-14",
+    "claim_per_year": 1004626,
+    "projected_ha": 82994.27,
+    "projected_tco2e": 30138794,
+    "radd_geography": "sa"
+  },
+  "agroflorestal": {
+    "name": "Projeto Agroflorestal (Verra 5295, Pará, Brazil)",
+    "kml": "PROJETO_AGROFLORESTAL ID 5295.kml",
+    "start": "2021-10-10",
+    "end": "2061-10-09",
+    "claim_per_year": 94143,
+    "registered_ha": 23093,
+    "carbon_tc_per_ha": 150,
+    "radd_geography": "sa"
+  },
+  "lomphat": {
+    "name": "Lomphat Wildlife Sanctuary REDD+ (Verra 3434, Cambodia)",
+    "kml": "LWS_REDD_1st_Instance_Forest_Types_2026.kml",
+    "start": "2023-05-03",
+    "end": "2063-05-02",
+    "claim_per_year": 690039,
+    "registered_ha": 134730,
+    "carbon_tc_per_ha": 150,
+    "radd_geography": "asia"
+  }
+}

@@ -10,8 +10,8 @@
 import csv
 import json
 
-from config import (BUFFER_M, CANDIDATES_CSV, CELL_SIZE_M, PROFILE_JSON,
-                    PROJECT_CELLS_CSV, PROJECT_START_YEAR, SEARCH_RADIUS_M)
+from config import (BUFFER_M, CANDIDATES_CSV, CELL_SIZE_M, MIN_FOREST_SHARE, PROFILE_JSON,
+                    PROJECT_CELLS_CSV, PROJECT_START_YEAR, SEARCH_RADIUS_SETTING)
 from geo import init_earth_engine, load_boundary
 from parcel_finder import FindParcels
 
@@ -21,6 +21,8 @@ N_CANDIDATES = 200                   # how many parcels to keep
 MIN_SPACING_KM = 6.0                 # minimum distance between parcel centres (0 = off)
 N_NEAREST = 3                        # project cells each candidate is compared with
 RUN_RING_TEST = True                 # print loss rates in rings around the project
+SEARCH_RADII_M = (50_000, 100_000, 150_000)   # tried in turn unless the project sets its own radius
+MIN_CANDIDATES = 100                 # widen the search if fewer comparison parcels are found
 
 
 # ------------------------------------------------------------------- steps
@@ -59,6 +61,36 @@ def print_ring_test(finder):
               + f"{r['before']:>9.2f}{r['after']:>9.2f}{r['ratio']:>14.2f}")
 
 
+def search(rings):
+    """Find comparison parcels, widening the search radius until enough are found. A radius set
+    for the project in data/projects.json is used as it is."""
+    trend_years = min(5, PROJECT_START_YEAR - 2002)            # the data starts in 2001
+    if trend_years < 1:
+        raise SystemExit(f'A project starting in {PROJECT_START_YEAR} has too little earlier data.')
+    radii = [SEARCH_RADIUS_SETTING] if SEARCH_RADIUS_SETTING else list(SEARCH_RADII_M)
+    best = None
+    for radius in radii:
+        finder = FindParcels(
+            rings, start_year=PROJECT_START_YEAR, buffer_m=BUFFER_M, search_radius_m=radius,
+            cell_size_m=CELL_SIZE_M, min_forest_share=MIN_FOREST_SHARE, trend_years=trend_years,
+            min_spacing_km=MIN_SPACING_KM, n_nearest=N_NEAREST)
+        print(f'Searching for parcels within {radius / 1000:g} km (this can take several minutes)...')
+        try:
+            finder.fit(N_CANDIDATES)
+        except RuntimeError as err:                           # for example too many eligible cells
+            if best is None:
+                raise
+            print(f'  Stopped widening: {err}')
+            break
+        finder.radius_m = radius
+        best = finder
+        if len(finder.candidates) >= MIN_CANDIDATES or radius == radii[-1]:
+            break
+        print(f'  Only {len(finder.candidates)} comparison parcels within {radius / 1000:g} km; '
+              'widening the search.')
+    return best
+
+
 def save_results(finder):
     """Write the parcels, the project's own cells and a small profile file."""
     bands = finder.band_names
@@ -77,6 +109,7 @@ def save_results(finder):
 
     with open(PROFILE_JSON, 'w') as fh:
         json.dump({'start_year': PROJECT_START_YEAR, 'bands': bands,
+                   'search_radius_m': finder.radius_m,
                    'project_cell_means': finder.project_means(),
                    'n_project_cells': len(finder.project_cells),
                    'feature_spread': finder.spreads()}, fh, indent=2)
@@ -85,13 +118,7 @@ def save_results(finder):
 # -------------------------------------------------------------------- main
 def main():
     init_earth_engine()
-    finder = FindParcels(
-        load_boundary(), start_year=PROJECT_START_YEAR, buffer_m=BUFFER_M,
-        search_radius_m=SEARCH_RADIUS_M, cell_size_m=CELL_SIZE_M,
-        min_spacing_km=MIN_SPACING_KM, n_nearest=N_NEAREST)
-
-    print('Searching for parcels (this can take several minutes)...')
-    finder.fit(N_CANDIDATES)
+    finder = search(load_boundary())
     if not finder.candidates:
         raise SystemExit('No eligible parcels found. Check the settings (buffer, spacing, forest share).')
 

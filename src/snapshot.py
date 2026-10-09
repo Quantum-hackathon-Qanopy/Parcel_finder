@@ -21,7 +21,7 @@ from pathlib import Path
 
 from config import (CELL_KM, PROFILE_JSON, PROJECT_CELLS_CSV, PROJECT_NAME, PROJECT_SLUG,
                     SELECTED_CSV, SNAPSHOT_JSON, require_boundary)
-from select_parcels import K, POOL_SIZE, SPACING_KM, WEIGHT_CROWDING, WEIGHT_FIT
+from select_parcels import POOL_SIZE, SPACING_KM, WEIGHT_CROWDING, WEIGHT_FIT
 
 
 def canonical_hash(content):
@@ -62,7 +62,7 @@ def create(force=False):
         'git_commit': git_commit(),
         'project_start_year': profile['start_year'],
         'cell_km': CELL_KM,
-        'selection_settings': {'k': K, 'pool_size': POOL_SIZE, 'spacing_km': SPACING_KM,
+        'selection_settings': {'k': len(parcels), 'pool_size': POOL_SIZE, 'spacing_km': SPACING_KM,
                                'weight_fit': WEIGHT_FIT, 'weight_crowding': WEIGHT_CROWDING},
         'project': {'slug': PROJECT_SLUG, 'name': PROJECT_NAME},
         'project_boundary_sha256': file_hash(require_boundary()),

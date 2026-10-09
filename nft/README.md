@@ -28,6 +28,8 @@ Token 0 (project `algar`) was minted on 2026-10-09 (status Worst, week of 2026-0
 
 Token 1 (project `agroflorestal`) was minted on 2026-10-09 with the status Good: transaction `0xe618bd53da4d9e8452f1fb10105299860655373a6e3b553f14c96155d5903f60`, metadata `ipfs://QmRy44K5RQw6jP9tygvrQ3eZnQibuoE3BtKiDXAWftHfcp`. Its carbon density is an assumption, stated in the token's description and in its `Carbon density source` property.
 
+Token 2 (project `lomphat`) was minted on 2026-10-09 with the status Worst: transaction `0xfe37d8e8be263404ab4f6c182ee6138282fd76c1e5a24e61ab730cf42d893774`, metadata `ipfs://QmTpoc8W86dRUrcPr86XEvWec8BXnqdRqsusTREeTnTJVS`. Its carbon density is an assumption, stated in the token.
+
 Each project has its own token on this contract: the first publish for a project mints a new one and records its id in that project's `nft_state.json`; later publishes update it. Choose the project with `--project`.
 
 ## Publishing

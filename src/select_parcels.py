@@ -39,6 +39,7 @@ SPACING_KM = 6.0        # pairs closer than this count as crowded
 WEIGHT_FIT = 0.25       # weight of the "fit" term relative to "balance"
 WEIGHT_CROWDING = 0.5   # weight of the "crowding" term relative to "balance"
 
+MAX_PICK_SHARE = 0.4    # never pick more than this share of the pool, so it stays a real choice
 SMALL_POOL = 16         # size of the reduced problem that fits a simulator / device
 SMALL_K = 6
 QAOA_LAYERS = (1, 2)    # QAOA depths to try on the reduced problem
@@ -305,8 +306,11 @@ def main():
     print(f"Pool: {n} candidates, {len(data['names'])} features")
 
     # ---- full-size problem: classical methods only
-    print(f"\n1. Full problem: pick {K} of {n} (classical methods)")
-    full = make_problem(data, K)
+    k = min(K, max(2, int(MAX_PICK_SHARE * n)))
+    if k < K:
+        print(f"Note: the pool has only {n} candidates, so {k} are picked instead of {K}.")
+    print(f"\n1. Full problem: pick {k} of {n} (classical methods)")
+    full = make_problem(data, k)
     results = {
         'top-K by similarity': top_k_similarity(full),
         'greedy + swaps': greedy_swap(full),
@@ -323,6 +327,9 @@ def main():
     print(f"\n  Saved {SELECTED_CSV} and {MATCHES_CSV}")
 
     # ---- reduced problem: small enough for a simulator or a real device
+    if n < SMALL_POOL:
+        print(f"\n2. Reduced problem skipped: the pool has fewer than {SMALL_POOL} candidates.")
+        return
     print(f"\n2. Reduced problem: pick {SMALL_K} of {SMALL_POOL} (exact answer known)")
     from qaoa import run_qaoa            # imported here so step 1 works without Qiskit
     small, sub = reduced_problem(data, full, SMALL_POOL, SMALL_K)

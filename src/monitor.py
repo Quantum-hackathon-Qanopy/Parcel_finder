@@ -46,13 +46,13 @@ import snapshot as snap
 from config import (BUFFER_KM, CARBON_SOURCE, CARBON_TCO2E_PER_HA, CELL_HA, CELL_KM,
                     CLAIMED_TCO2E_PER_YEAR, OUTPUT_DIR, OUTPUT_ROOT, PROJECT, PROJECTS,
                     PROJECT_AVOIDED_HA, PROJECT_AVOIDED_TCO2E, PROJECT_END, PROJECT_NAME,
-                    PROJECT_SLUG, PROJECT_START, SEARCH_KM)
-from geo import grown_boundary, init_earth_engine, load_boundary, square_bounds
+                    PROJECT_SLUG, PROJECT_START, RADD_GEOGRAPHY, SEARCH_KM, read_registry,
+                    write_project)
+from geo import (RADD_ASSET as RADD, detect_radd_geography, grown_boundary, init_earth_engine,
+                 load_boundary, square_bounds)
 from parcel_finder import HANSEN, boundary_geometry
 from select_parcels import SEED
 
-RADD = 'projects/radar-wur/raddalert/v1'      # RADD forest disturbance alerts
-GEOGRAPHY = 'sa'                              # South America tile set
 MONITOR_START = max(date(2020, 1, 1), PROJECT_START)   # RADD alerts start in 2020; nothing before the project starts counts
 SCALE_M = 10                                  # RADD's native pixel size
 PROVISIONAL_WEEKS = 8                         # newest weeks can still be revised
@@ -88,14 +88,14 @@ def boundary_forest_ha(ee, geometry):
                                    tileScale=8).getInfo()['area'])
 
 
-def fetch_weekly_losses(squares, since, batch=60):
+def fetch_weekly_losses(squares, since, geography, batch=60):
     """Confirmed RADD alert area (ha) per week for each square, and for the project's exact
     boundary under the key 'project:boundary'. squares: {key: (lon, lat)}. Also returns the forest
     area inside the boundary. Returns (losses, forest hectares)."""
     ee = init_earth_engine()
 
     images = (ee.ImageCollection(RADD).filter(ee.Filter.eq('layer', 'alerts'))
-              .filter(ee.Filter.eq('geography', GEOGRAPHY)).sort('system:time_end'))
+              .filter(ee.Filter.eq('geography', geography)).sort('system:time_end'))
     mosaic = images.mosaic()                                  # newest version on top
     day = mosaic.select('Date')                               # YYDOY
     since_code = (since.year - 2000) * 1000 + since.timetuple().tm_yday
@@ -404,11 +404,26 @@ def main():
         print(f'Using the download from {retrieved}')
     else:
         print(f'Downloading RADD alerts since {args.since} for {len(squares)} squares...')
-        losses, forest_ha = fetch_weekly_losses(squares, args.since)
+        geography = RADD_GEOGRAPHY
+        if geography is None:                                     # first run for this project
+            geography, counts = detect_radd_geography(load_boundary())
+            if geography is None:
+                raise SystemExit(f"RADD has no alerts at '{PROJECT_SLUG}' (alert pixels per tile set: "
+                                 f'{counts}). It covers humid tropical forest only, so this project '
+                                 'cannot be monitored with it.')
+            print(f"  RADD tile set detected: '{geography}'")
+            entry = read_registry()[PROJECT_SLUG]
+            entry['radd_geography'] = geography
+            write_project(PROJECT_SLUG, entry)
+        losses, forest_ha = fetch_weekly_losses(squares, args.since, geography)
         retrieved = datetime.now(timezone.utc).isoformat(timespec='seconds')
         RAW_JSON.write_text(json.dumps({'since': args.since.isoformat(), 'retrieved': retrieved,
                                         'boundary_forest_ha': forest_ha, 'losses': losses}))
 
+    if not any(sum(per.values()) > 0 for per in losses.values()):
+        print(f"\nWARNING: no alerts at all were found for '{PROJECT_SLUG}', neither in the project nor in "
+              f"any comparison parcel. RADD may not cover this region, "
+              'so zero loss here would mean no data, not no deforestation.\n')
     series = build_series(losses, snapshot['parcels'], snapshot['project_cells'], args.since, forest_ha)
     rng = np.random.default_rng(SEED)
     print(f"Analysing {len(series['weeks'])} weeks (QAE checkpoint every {args.qae_every})...")
