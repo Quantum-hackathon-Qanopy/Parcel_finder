@@ -1,0 +1,38 @@
+{
+ "contract": "0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492",
+ "chain_id": 84532,
+ "token_id": 0,
+ "token_uri": "ipfs://QmNxnGeg7CzQg3bpYFPF2xTyHbDyxtpQSxh7nfrHWERXZ4",
+ "tx_hash": "0x431548ca835963ca406e094c5eddb093912f6a544f2eba312aa71fa0bccb14a4",
+ "history": [
+  {
+   "contract": "0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492",
+   "chain_id": 84532,
+   "token_id": 0,
+   "token_uri": "ipfs://QmRNSG4Toe9nYr5MyVD46whjnM7sDxJfEXg8mfG3nptKrC",
+   "tx_hash": "0xe744cb4e38b27db3d748fe9a89b813600c5fcc09a45b9c0f5d609000f0e0e9cb",
+   "action": "mint",
+   "status": "worst",
+   "ratio": 0.2764168143517027,
+   "week_start": "2026-09-14",
+   "published_at": "2026-10-09T08:34:00+00:00"
+  },
+  {
+   "contract": "0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492",
+   "chain_id": 84532,
+   "token_id": 0,
+   "token_uri": "ipfs://QmNxnGeg7CzQg3bpYFPF2xTyHbDyxtpQSxh7nfrHWERXZ4",
+   "tx_hash": "0x431548ca835963ca406e094c5eddb093912f6a544f2eba312aa71fa0bccb14a4",
+   "action": "update",
+   "status": "worst",
+   "ratio": 0.2764168143517027,
+   "week_start": "2026-09-14",
+   "published_at": "2026-10-09T08:49:23+00:00"
+  }
+ ],
+ "action": "update",
+ "status": "worst",
+ "ratio": 0.2764168143517027,
+ "week_start": "2026-09-14",
+ "published_at": "2026-10-09T08:49:23+00:00"
+}

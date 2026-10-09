@@ -8,3 +8,5 @@ folium
 qiskit
 qiskit-aer
 qiskit-ibm-runtime
+requests
+web3

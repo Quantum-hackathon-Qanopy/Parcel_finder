@@ -96,17 +96,17 @@ def square(lon, lat, km=CELL_KM):
 
 
 def project_ring():
-    """Project boundary as (lat, lon) pairs, or None if the KML cannot be read."""
+    """Project boundary as a list of rings of (lat, lon) pairs, or None if the KML cannot be read."""
     try:
-        return [(lat, lon) for lon, lat in load_boundary()]
+        return [[(lat, lon) for lon, lat in ring] for ring in load_boundary()]
     except Exception as err:                        # the map is still useful without it
         print(f'Project boundary not drawn ({KML_FILE}: {err})')
         return None
 
 
 def buffer_outline(km):
-    """Outline of the project boundary grown by `km`, as (lat, lon) pairs."""
-    return [(lat, lon) for lon, lat in grown_boundary(km)]
+    """Outline of the project boundary grown by `km`, as a list of rings of (lat, lon) pairs."""
+    return [[(lat, lon) for lon, lat in ring] for ring in grown_boundary(km)]
 
 
 def start_earth_engine():
@@ -159,7 +159,8 @@ def load_protected(ee):
     if ee is None:
         return None
     from parcel_finder import PROTECTED
-    project = ee.Geometry.Polygon(load_boundary())
+    from parcel_finder import boundary_geometry
+    project = boundary_geometry(load_boundary())
     region = project.buffer(SEARCH_KM * 1000).difference(project.buffer(BUFFER_KM * 1000))
     areas = ee.FeatureCollection(PROTECTED).filterBounds(region).map(
         lambda f: ee.Feature(f.geometry().simplify(200), {'name': f.get('NAME')}))
@@ -226,14 +227,14 @@ def main():
     buffer_ok = False
     if boundary:
         try:
-            ring_buffer = buffer_outline(BUFFER_KM)
-            ring_search = buffer_outline(SEARCH_KM)
             for layer in (g_buffer, g_search):
-                folium.Polygon(ring_buffer, color='yellow', weight=3, fill=True,
-                               fill_color='yellow', fill_opacity=0.25,
-                               tooltip=f'Leakage buffer ({BUFFER_KM} km): excluded').add_to(layer)
-            folium.Polygon(ring_search, color='orange', weight=3, fill=False,
-                           tooltip=f'Search limit ({SEARCH_KM} km)').add_to(g_search)
+                for ring in buffer_outline(BUFFER_KM):
+                    folium.Polygon(ring, color='yellow', weight=3, fill=True,
+                                   fill_color='yellow', fill_opacity=0.25,
+                                   tooltip=f'Leakage buffer ({BUFFER_KM:g} km): excluded').add_to(layer)
+            for ring in buffer_outline(SEARCH_KM):
+                folium.Polygon(ring, color='orange', weight=3, fill=False,
+                               tooltip=f'Search limit ({SEARCH_KM:g} km)').add_to(g_search)
             buffer_ok = True
         except Exception as err:
             print(f'Buffer and search region not drawn ({err})')

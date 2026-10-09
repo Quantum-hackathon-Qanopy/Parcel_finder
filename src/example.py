@@ -10,7 +10,7 @@
 import csv
 import json
 
-from config import (BUFFER_M, CANDIDATES_CSV, CELL_SIZE_M, KML_FILE, PROFILE_JSON,
+from config import (BUFFER_M, CANDIDATES_CSV, CELL_SIZE_M, PROFILE_JSON,
                     PROJECT_CELLS_CSV, PROJECT_START_YEAR, SEARCH_RADIUS_M)
 from geo import init_earth_engine, load_boundary
 from parcel_finder import FindParcels
@@ -86,7 +86,7 @@ def save_results(finder):
 def main():
     init_earth_engine()
     finder = FindParcels(
-        load_boundary(KML_FILE), start_year=PROJECT_START_YEAR, buffer_m=BUFFER_M,
+        load_boundary(), start_year=PROJECT_START_YEAR, buffer_m=BUFFER_M,
         search_radius_m=SEARCH_RADIUS_M, cell_size_m=CELL_SIZE_M,
         min_spacing_km=MIN_SPACING_KM, n_nearest=N_NEAREST)
 

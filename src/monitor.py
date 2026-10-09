@@ -6,8 +6,9 @@
 
 Steps (pipeline steps 7 and 8):
   1. load the frozen snapshot (snapshot.py) and refuse to run if its hash no longer matches
-  2. download weekly forest-disturbance alerts (RADD radar alerts, confirmed class) for the
-     project's grid cells and for each comparison parcel from Earth Engine
+  2. download weekly forest-disturbance alerts (RADD radar alerts, confirmed class) from Earth
+     Engine for each comparison parcel and for the project itself, measured inside its exact
+     boundary (the project's grid cells are only used for the map)
   3. turn them into cumulative loss rates and the avoided loss
          (mean parcel loss rate - project loss rate) x project forest area
   4. give the uncertainty two ways: a classical bootstrap over the parcels, and, at
@@ -15,12 +16,16 @@ Steps (pipeline steps 7 and 8):
      the same number of evaluations (see amplitude_estimation.py)
   5. convert to tons of CO2e with the carbon density implied by the project's own projection
      and compare with the claim, pro-rated over the monitoring window
-  6. write outputs/monitoring_log.csv, append a run record to outputs/monitoring_runs.csv and
+  6. work out the NFT status (nft_status.py) and, with --publish-nft, publish it (publish_nft.py)
+  7. write outputs/monitoring_log.csv, append a run record to outputs/monitoring_runs.csv and
      rebuild outputs/monitoring_dashboard.html
 
 To run it every Monday at 07:00 on Windows, in a terminal from the repository root:
 
-    schtasks /create /sc weekly /d MON /st 07:00 /tn ParcelMonitor /tr "python %CD%\\src\\monitor.py --no-open"
+    schtasks /create /sc weekly /d MON /st 07:00 /tn ParcelMonitor /tr "python %CD%\\src\\run_pipeline.py --publish"
+
+(run_pipeline.py runs this script and then publishes the NFT status; drop --publish to
+only monitor and do a dry run of the publish)
 
 Limits worth knowing: RADD flags disturbance only in primary humid forest and from 2019;
 the most recent weeks are provisional because alerts get confirmed with a delay; the
@@ -36,33 +41,33 @@ from pathlib import Path
 
 import numpy as np
 
+import nft_status
 import snapshot as snap
-from config import CELL_HA, CELL_KM, OUTPUT_DIR
-from geo import init_earth_engine, square_bounds
+from config import (BUFFER_KM, CARBON_SOURCE, CARBON_TCO2E_PER_HA, CELL_HA, CELL_KM,
+                    CLAIMED_TCO2E_PER_YEAR, OUTPUT_DIR, OUTPUT_ROOT, PROJECT, PROJECTS,
+                    PROJECT_AVOIDED_HA, PROJECT_AVOIDED_TCO2E, PROJECT_END, PROJECT_NAME,
+                    PROJECT_SLUG, PROJECT_START, SEARCH_KM)
+from geo import grown_boundary, init_earth_engine, load_boundary, square_bounds
+from parcel_finder import HANSEN, boundary_geometry
 from select_parcels import SEED
 
 RADD = 'projects/radar-wur/raddalert/v1'      # RADD forest disturbance alerts
 GEOGRAPHY = 'sa'                              # South America tile set
-MONITOR_START = date(2020, 1, 1)              # losses are counted from this date (RADD alerts here start in 2020)
+MONITOR_START = max(date(2020, 1, 1), PROJECT_START)   # RADD alerts start in 2020; nothing before the project starts counts
 SCALE_M = 10                                  # RADD's native pixel size
 PROVISIONAL_WEEKS = 8                         # newest weeks can still be revised
 BOOTSTRAP = 2000
+FOREST_THRESHOLD = 30                         # canopy cover (%) that counts as forest, as in FindParcels
 
-# Project facts supplied by the team (check against the project documents).
-PROJECT_START = date(2017, 12, 14)            # ALGAR start date
-PROJECT_END = date(2047, 12, 14)              # 30-year project life
-CLAIMED_TCO2E_PER_YEAR = 1_004_626.0          # projected average avoided emissions per year
-
-# The project's own 30-year projection. The carbon density is derived from it, so it is the
-# value implied by the project's estimate, not an independent measurement.
-PROJECT_AVOIDED_HA = 82_994.27                # projected avoided deforestation over the project life
-PROJECT_AVOIDED_TCO2E = 30_138_794.0          # projected avoided emissions over the project life
-CARBON_TCO2E_PER_HA = PROJECT_AVOIDED_TCO2E / PROJECT_AVOIDED_HA     # 363.1 tCO2e/ha = 99.0 tC/ha
+# The project's facts (dates, claim, projection, carbon density) are in config.py. The carbon
+# density is derived from the project's own projection, so it is the value implied by the
+# project's estimate, not an independent measurement. Without one, only hectares are reported.
 
 RAW_JSON = OUTPUT_DIR / 'monitoring_raw.json'
 LOG_CSV = OUTPUT_DIR / 'monitoring_log.csv'
 RUNS_CSV = OUTPUT_DIR / 'monitoring_runs.csv'
-DASHBOARD_HTML = OUTPUT_DIR / 'monitoring_dashboard.html'
+DASHBOARD_HTML = OUTPUT_ROOT / 'monitoring_dashboard.html'          # one page for all projects
+PAYLOAD_JSON = OUTPUT_DIR / 'dashboard_payload.json'      # this project's part of the dashboard
 
 
 # --------------------------------------------------------------------- data download
@@ -71,8 +76,22 @@ def week_start(week):
     return date(2000, 1, 1) + timedelta(days=7 * int(week) + 2)
 
 
+def boundary_forest_ha(ee, geometry):
+    """Forest inside the project boundary at the project start, in hectares: Hansen canopy of at
+    least FOREST_THRESHOLD %, after removing loss before the start year (as FindParcels does)."""
+    hansen = ee.Image(HANSEN)
+    loss_year = hansen.select('lossyear')
+    lost_before = loss_year.gt(0).And(loss_year.lte(PROJECT_START.year - 2001))
+    forest = hansen.select('treecover2000').where(lost_before, 0).gte(FOREST_THRESHOLD)
+    area = ee.Image.pixelArea().divide(1e4).updateMask(forest)
+    return float(area.reduceRegion(ee.Reducer.sum(), geometry, 30, maxPixels=1e11,
+                                   tileScale=8).getInfo()['area'])
+
+
 def fetch_weekly_losses(squares, since, batch=60):
-    """Confirmed RADD alert area (ha) per square and week. squares: {key: (lon, lat)}."""
+    """Confirmed RADD alert area (ha) per week for each square, and for the project's exact
+    boundary under the key 'project:boundary'. squares: {key: (lon, lat)}. Also returns the forest
+    area inside the boundary. Returns (losses, forest hectares)."""
     ee = init_earth_engine()
 
     images = (ee.ImageCollection(RADD).filter(ee.Filter.eq('layer', 'alerts'))
@@ -101,12 +120,22 @@ def fetch_weekly_losses(squares, since, batch=60):
             losses[props['key']] = {int(g['week']): float(g['sum'])
                                     for g in props.get('groups', [])}
         print(f'  downloaded {min(start + batch, len(keys))} of {len(keys)} squares')
-    return losses
+
+    geometry = boundary_geometry(load_boundary())             # the project's true shape
+    out = data.reduceRegions(ee.FeatureCollection([ee.Feature(geometry, {'key': 'project:boundary'})]),
+                             reducer, SCALE_M, tileScale=8).getInfo()
+    props = out['features'][0]['properties']
+    losses['project:boundary'] = {int(g['week']): float(g['sum']) for g in props.get('groups', [])}
+    forest_ha = boundary_forest_ha(ee, geometry)
+    print(f'  project boundary: {forest_ha:,.0f} ha of forest at the start')
+    return losses, forest_ha
 
 
 # ---------------------------------------------------------------------------- analysis
-def build_series(losses, parcels, project_cells, since):
-    """Weekly cumulative loss for the project and each parcel, from `since` to the latest alert."""
+def build_series(losses, parcels, project_cells, since, project_forest_ha):
+    """Weekly cumulative loss for the project and each parcel, from `since` to the latest alert.
+    The project's loss is measured inside its exact boundary against `project_forest_ha`; the
+    project cells are only kept for the map."""
     all_weeks = [w for per in losses.values() for w in per]
     first = (since - date(2000, 1, 1)).days // 7
     last = max(all_weeks) if all_weeks else first
@@ -125,15 +154,18 @@ def build_series(losses, parcels, project_cells, since):
 
     parcel_forest = np.array([p['forest_start'] * CELL_HA for p in parcels])
     parcel_loss = np.array([cumulative(f"parcel:{p['id']}") for p in parcels])    # parcels x weeks
-    project_loss = sum(cumulative(f"project:{c['id']}") for c in project_cells)
-    project_forest = float(sum(c['forest_start'] for c in project_cells) * CELL_HA)
+    for c in project_cells:
+        cumulative(f"project:{c['id']}")
+    project_loss = cumulative('project:boundary')
+    project_forest = float(project_forest_ha)
     return {'weeks': weeks, 'parcel_rate': (parcel_loss / parcel_forest[:, None]).T,   # weeks x parcels
             'project_loss_ha': project_loss, 'project_forest_ha': project_forest, 'cum': cache,
             'project_rate': project_loss / project_forest}
 
 
 def to_tco2(hectares):
-    return hectares * CARBON_TCO2E_PER_HA
+    """tCO2e for a number of hectares, or None when the project has no carbon density."""
+    return None if CARBON_TCO2E_PER_HA is None else float(hectares * CARBON_TCO2E_PER_HA)
 
 
 def estimators(rates, project_rate, project_forest, rng, trials):
@@ -178,7 +210,7 @@ def analyse(series, qae_every, trials, rng, since):
                   'avoided_ha': avoided,
                   'avoided_ci_lo': float(to_ha(np.percentile(boot, 2.5))),
                   'avoided_ci_hi': float(to_ha(np.percentile(boot, 97.5))),
-                  'avoided_tco2': float(to_tco2(avoided)),
+                  'avoided_tco2': to_tco2(avoided),
                   'claim_tco2': CLAIMED_TCO2E_PER_YEAR * window_years, 'estimators': None}
         if qae_every and (i % qae_every == 0 or i == n_weeks - 1):
             record['estimators'] = estimators(row, series['project_rate'][i],
@@ -213,7 +245,8 @@ def append_run(snapshot, records, retrieved):
         writer.writerow([datetime.now(timezone.utc).isoformat(timespec='seconds'),
                          snapshot['sha256'], retrieved, last['week_start'], len(records),
                          round(last['avoided_ha'], 3), round(last['avoided_ci_lo'], 3),
-                         round(last['avoided_ci_hi'], 3), round(last['avoided_tco2'], 1)])
+                         round(last['avoided_ci_hi'], 3),
+                         '' if last['avoided_tco2'] is None else round(last['avoided_tco2'], 1)])
 
 
 def spatial(snapshot, series):
@@ -227,7 +260,25 @@ def spatial(snapshot, series):
             'cells': [entry(f"project:{c['id']}", c) for c in snapshot['project_cells']]}
 
 
-def write_dashboard(snapshot, records, series, retrieved, since):
+def project_facts():
+    return {'slug': PROJECT_SLUG, 'name': PROJECT_NAME,
+            'start': PROJECT_START.isoformat(), 'end': PROJECT_END.isoformat(),
+            'registered_ha': PROJECT['registered_ha'],
+            'claim_per_year': CLAIMED_TCO2E_PER_YEAR,
+            'projected_ha': PROJECT_AVOIDED_HA, 'projected_tco2e': PROJECT_AVOIDED_TCO2E,
+            'tco2e_per_ha': CARBON_TCO2E_PER_HA, 'density_source': CARBON_SOURCE}
+
+
+def write_latest(snapshot, records, since):
+    """The newest week and the project facts, for the NFT publisher (publish_nft.py)."""
+    latest = {'record': {k: v for k, v in records[-1].items() if k != 'estimators'},
+              'since': since.isoformat(), 'snapshot_sha256': snapshot['sha256'],
+              'project': project_facts()}
+    nft_status.LATEST_JSON.write_text(json.dumps(latest, indent=1))
+    return latest
+
+
+def write_dashboard(snapshot, records, series, retrieved, since, latest):
     payload = {
         'records': records, 'retrieved': retrieved, 'since': since.isoformat(),
         'snapshot': {'sha256': snapshot['sha256'], 'created_at': snapshot['created_at'],
@@ -235,13 +286,88 @@ def write_dashboard(snapshot, records, series, retrieved, since):
                      'project_cells': len(snapshot['project_cells'])},
         'project_forest_ha': series['project_forest_ha'],
         'spatial': spatial(snapshot, series),
-        'project': {'start': PROJECT_START.isoformat(), 'end': PROJECT_END.isoformat(),
-                    'claim_per_year': CLAIMED_TCO2E_PER_YEAR,
-                    'projected_ha': PROJECT_AVOIDED_HA, 'projected_tco2e': PROJECT_AVOIDED_TCO2E,
-                    'tco2e_per_ha': CARBON_TCO2E_PER_HA},
+        'boundary': boundary_payload(), 'zones': zones_payload(), 'protected': protected_payload(),
+        'project': project_facts(),
+        'nft': nft_block(latest),
         'provisional_weeks': PROVISIONAL_WEEKS}
+    PAYLOAD_JSON.write_text(json.dumps(payload), encoding='utf-8')
+    render_dashboard()
+
+
+def boundary_payload():
+    """The project outline for the dashboard map: rings of [lat, lon], lightly simplified
+    (about 10 m) so large boundary files stay small."""
+    from shapely.geometry import Polygon
+    rings = []
+    for ring in load_boundary():
+        outline = Polygon(ring).simplify(0.0001, preserve_topology=True)
+        if not outline.is_empty and outline.geom_type == 'Polygon':
+            rings.append([[round(y, 5), round(x, 5)] for x, y in outline.exterior.coords])
+    return rings
+
+
+def zones_payload():
+    """The leakage buffer and the outer search limit for the dashboard map: rings of [lat, lon],
+    simplified to about 50 m. Candidates lie between the two; nothing is chosen inside the buffer."""
+    from shapely.geometry import Polygon
+
+    def rings(km):
+        out = []
+        for ring in grown_boundary(km):
+            outline = Polygon(ring).simplify(0.0005, preserve_topology=True)
+            if not outline.is_empty and outline.geom_type == 'Polygon':
+                out.append([[round(y, 5), round(x, 5)] for x, y in outline.exterior.coords])
+        return out
+    return {'buffer_km': BUFFER_KM, 'search_km': SEARCH_KM,
+            'buffer': rings(BUFFER_KM), 'search': rings(SEARCH_KM)}
+
+
+def protected_payload():
+    """Protected areas near the project (cached by selection_map.py) for the dashboard map, as
+    simplified GeoJSON, or None when they have not been downloaded for this project."""
+    path = OUTPUT_DIR / 'protected_areas.geojson'
+    if not path.exists():
+        return None
+    from shapely.geometry import mapping, shape
+    features = []
+    for feature in json.loads(path.read_text(encoding='utf-8'))['features']:
+        geometry = shape(feature['geometry']).simplify(0.0005, preserve_topology=True)
+        if not geometry.is_empty:
+            features.append({'type': 'Feature', 'properties': {'name': feature['properties'].get('name')},
+                             'geometry': mapping(geometry)})
+    return {'type': 'FeatureCollection', 'features': features}
+
+
+def nft_block(latest):
+    return {'status': nft_status.build_status(latest), 'published': nft_status.load_state(),
+            'contract': nft_status.CONTRACT_ADDRESS, 'explorer': nft_status.EXPLORER_URL}
+
+
+def render_dashboard():
+    """Write the one dashboard page for every project that has monitoring results."""
+    payloads = []
+    for path in sorted(OUTPUT_ROOT.glob('*/dashboard_payload.json')):
+        payloads.append(json.loads(path.read_text(encoding='utf-8')))
+    order = list(PROJECTS)                                    # tabs follow the order in config.py
+    payloads.sort(key=lambda p: order.index(p['project']['slug']) if p['project']['slug'] in order else len(order))
     html = (Path(__file__).resolve().parent / 'monitor_dashboard.html').read_text(encoding='utf-8')
-    DASHBOARD_HTML.write_text(html.replace('__DATA__', json.dumps(payload)), encoding='utf-8')
+    DASHBOARD_HTML.write_text(html.replace('__DATA__', json.dumps({'projects': payloads})),
+                              encoding='utf-8')
+
+
+def refresh_dashboard():
+    """Redraw the dashboard with the current NFT state, without redoing the monitoring."""
+    latest = nft_status.load_latest()
+    latest['project'] = project_facts()                       # pick up changed project facts too
+    nft_status.LATEST_JSON.write_text(json.dumps(latest, indent=1))
+    payload = json.loads(PAYLOAD_JSON.read_text(encoding='utf-8'))
+    payload['project'] = project_facts()
+    payload['boundary'] = boundary_payload()
+    payload['zones'] = zones_payload()
+    payload['protected'] = protected_payload()
+    payload['nft'] = nft_block(latest)
+    PAYLOAD_JSON.write_text(json.dumps(payload), encoding='utf-8')
+    render_dashboard()
 
 
 # --------------------------------------------------------------------------------- main
@@ -254,6 +380,8 @@ def main():
                         help='run the QAE comparison every N weeks (0 = never)')
     parser.add_argument('--trials', type=int, default=200, help='repeats for the QAE/Monte Carlo spread')
     parser.add_argument('--no-open', action='store_true', help='do not open the dashboard')
+    parser.add_argument('--publish-nft', action='store_true',
+                        help='after monitoring, publish the status to the NFT (see publish_nft.py)')
     args = parser.parse_args()
 
     snapshot = snap.load()                                    # exits if the hash is wrong
@@ -267,31 +395,45 @@ def main():
         if raw['since'] != args.since.isoformat():
             raise SystemExit(f"Saved download starts {raw['since']}; run without --offline "
                              f"for --since {args.since}.")
+        if 'project:boundary' not in raw['losses']:
+            raise SystemExit('The saved download predates measuring inside the exact boundary; run '
+                             'without --offline once.')
         losses = {k: {int(w): v for w, v in per.items()} for k, per in raw['losses'].items()}
+        forest_ha = raw['boundary_forest_ha']
         retrieved = raw['retrieved']
         print(f'Using the download from {retrieved}')
     else:
         print(f'Downloading RADD alerts since {args.since} for {len(squares)} squares...')
-        losses = fetch_weekly_losses(squares, args.since)
+        losses, forest_ha = fetch_weekly_losses(squares, args.since)
         retrieved = datetime.now(timezone.utc).isoformat(timespec='seconds')
         RAW_JSON.write_text(json.dumps({'since': args.since.isoformat(), 'retrieved': retrieved,
-                                        'losses': losses}))
+                                        'boundary_forest_ha': forest_ha, 'losses': losses}))
 
-    series = build_series(losses, snapshot['parcels'], snapshot['project_cells'], args.since)
+    series = build_series(losses, snapshot['parcels'], snapshot['project_cells'], args.since, forest_ha)
     rng = np.random.default_rng(SEED)
     print(f"Analysing {len(series['weeks'])} weeks (QAE checkpoint every {args.qae_every})...")
     records = analyse(series, args.qae_every, args.trials, rng, args.since)
 
     write_log(records)
     append_run(snapshot, records, retrieved)
-    write_dashboard(snapshot, records, series, retrieved, args.since)
+    latest = write_latest(snapshot, records, args.since)
+    write_dashboard(snapshot, records, series, retrieved, args.since, latest)
     last = records[-1]
     print(f"\nLatest week {last['week_start']}: project loss {last['project_rate']:.3%}, "
           f"parcels {last['parcel_rate_mean']:.3%}")
     print(f"Avoided loss {last['avoided_ha']:,.0f} ha "
-          f"(95% interval {last['avoided_ci_lo']:,.0f} to {last['avoided_ci_hi']:,.0f}) "
-          f"= {last['avoided_tco2']:,.0f} tCO2e at {CARBON_TCO2E_PER_HA:.0f} tCO2e/ha")
+          f"(95% interval {last['avoided_ci_lo']:,.0f} to {last['avoided_ci_hi']:,.0f})")
+    status = nft_status.build_status(latest)
+    if status is None:
+        print(f"No carbon density for '{PROJECT_SLUG}' (set tco2e_per_ha or the projected avoided "
+              'hectares and tCO2e in config.py): no tCO2e figure and no NFT status.')
+    else:
+        print(f"= {last['avoided_tco2']:,.0f} tCO2e at {CARBON_TCO2E_PER_HA:.0f} tCO2e/ha")
+        print(f"NFT status: {status['label']} ({status['ratio']:.0%} of the claim to date)")
     print(f'Saved {LOG_CSV}, {RUNS_CSV} and {DASHBOARD_HTML}')
+    if args.publish_nft:
+        import publish_nft
+        publish_nft.publish(dry_run=False)
     if not args.no_open:
         webbrowser.open(DASHBOARD_HTML.resolve().as_uri())
 

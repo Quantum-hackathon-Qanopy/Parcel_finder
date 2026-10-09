@@ -19,8 +19,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from config import (CELL_KM, KML_FILE, PROFILE_JSON, PROJECT_CELLS_CSV, SELECTED_CSV,
-                    SNAPSHOT_JSON)
+from config import (CELL_KM, PROFILE_JSON, PROJECT_CELLS_CSV, PROJECT_NAME, PROJECT_SLUG,
+                    SELECTED_CSV, SNAPSHOT_JSON, require_boundary)
 from select_parcels import K, POOL_SIZE, SPACING_KM, WEIGHT_CROWDING, WEIGHT_FIT
 
 
@@ -64,7 +64,8 @@ def create(force=False):
         'cell_km': CELL_KM,
         'selection_settings': {'k': K, 'pool_size': POOL_SIZE, 'spacing_km': SPACING_KM,
                                'weight_fit': WEIGHT_FIT, 'weight_crowding': WEIGHT_CROWDING},
-        'project_boundary_sha256': file_hash(KML_FILE),
+        'project': {'slug': PROJECT_SLUG, 'name': PROJECT_NAME},
+        'project_boundary_sha256': file_hash(require_boundary()),
         'parcels': parcels,
         'project_cells': [{'id': r['id'], 'lon': r['lon'], 'lat': r['lat'],
                            'forest_start': r['forest_start']} for r in project],
@@ -97,7 +98,7 @@ def main():
     if args.verify:
         snapshot = load()
         print(f"OK: snapshot matches its hash {snapshot['sha256']}")
-        boundary_ok = snapshot['project_boundary_sha256'] == file_hash(KML_FILE)
+        boundary_ok = snapshot['project_boundary_sha256'] == file_hash(require_boundary())
         print('Project boundary file ' + ('matches.' if boundary_ok else
                                           'has CHANGED since the snapshot.'))
         return

@@ -1,0 +1,26 @@
+{
+ "contract": "0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492",
+ "chain_id": 84532,
+ "token_id": 1,
+ "token_uri": "ipfs://QmRy44K5RQw6jP9tygvrQ3eZnQibuoE3BtKiDXAWftHfcp",
+ "tx_hash": "0xe618bd53da4d9e8452f1fb10105299860655373a6e3b553f14c96155d5903f60",
+ "action": "mint",
+ "status": "good",
+ "ratio": 1.2286618901571975,
+ "week_start": "2026-09-21",
+ "published_at": "2026-10-09T10:54:47+00:00",
+ "history": [
+  {
+   "contract": "0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492",
+   "chain_id": 84532,
+   "token_id": 1,
+   "token_uri": "ipfs://QmRy44K5RQw6jP9tygvrQ3eZnQibuoE3BtKiDXAWftHfcp",
+   "tx_hash": "0xe618bd53da4d9e8452f1fb10105299860655373a6e3b553f14c96155d5903f60",
+   "action": "mint",
+   "status": "good",
+   "ratio": 1.2286618901571975,
+   "week_start": "2026-09-21",
+   "published_at": "2026-10-09T10:54:47+00:00"
+  }
+ ]
+}

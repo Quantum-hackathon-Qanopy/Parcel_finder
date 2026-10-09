@@ -7,8 +7,14 @@ venv/
 # Generated results (rerun src/example.py and src/select_parcels.py to recreate)
 outputs/*
 !outputs/.gitkeep
+!outputs/*/
+outputs/*/*
 
 # Local files
 .DS_Store
 .ipynb_checkpoints/
-!outputs/snapshot.json
+!outputs/*/snapshot.json
+
+# Secrets
+.env
+!outputs/*/nft_state.json

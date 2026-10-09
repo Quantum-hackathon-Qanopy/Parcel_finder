@@ -57,8 +57,20 @@
             align-items: center; }
   .ramp { width: 160px; height: 10px; border-radius: 5px;
           background: linear-gradient(to right, #ffffb2, #fd8d3c, #bd0026, #4a0010); }
+  .nft { margin-bottom: 16px; }
+  .scale { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 120px; padding: 8px 10px; border-radius: 8px; border: 2px solid transparent;
+          background: var(--bg); color: var(--muted); font-size: 13px; text-align: center; }
+  .step b { display: block; color: var(--ink); font-size: 14px; }
+  .step.on { color: #fff; font-weight: 600; border-color: var(--ink); }
+  .step.on b { color: #fff; }
   .foot { color: var(--muted); font-size: 12.5px; margin-top: 16px; word-break: break-all; }
   code { font-size: 12px; }
+  a { color: var(--parcels); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+  .tab { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px;
+         padding: 6px 14px; cursor: pointer; font-size: 14px; }
+  .tab.on { background: #1f6feb; color: #fff; border-color: #1f6feb; }
 </style>
 </head>
 <body>
@@ -78,10 +90,12 @@
   });
 </script>
 <main>
-  <h1>Forest monitoring: project against its comparison parcels</h1>
+  <h1 id="title">Forest monitoring</h1>
+  <div class="tabs" id="tabs"></div>
   <p class="sub" id="sub"></p>
   <div class="banner" id="banner"></div>
   <div class="cards" id="cards"></div>
+  <div class="panel nft" id="nft"></div>
   <div class="grid">
     <div class="panel"><h2>Cumulative forest loss</h2>
       <p class="hint">Share of forest area lost since monitoring started. Shaded: 5th to 95th percentile of the parcels.</p>
@@ -90,91 +104,144 @@
       <p class="hint">Hectares of forest the project kept standing compared with the parcels. Shaded: 95% bootstrap interval.</p>
       <div class="chart"><canvas id="avoided"></canvas></div></div>
     <div class="panel wide"><h2>Where the loss happened</h2>
-      <p class="hint">Each square is a 2 km grid cell, coloured by the share of its forest lost so far. Comparison parcels have a blue outline; project cells are the small squares inside the project. Drag the slider or press play.</p>
+      <p class="hint">Each square is a 2 km grid cell, coloured by the share of its forest lost so far. Comparison parcels have a blue outline; project cells are the small squares inside the project. The red line is the project boundary, which the grid only partly covers; the yellow band is the leakage buffer. Use the layer menu on the map to switch zones and features on and off. Drag the slider or press play.</p>
       <div id="map"></div>
       <div class="controls"><button id="play">Play</button><input type="range" id="week" min="0" value="0"><span id="weekLabel"></span></div>
-      <div class="legend"><span>0%</span><span class="ramp"></span><span>10% or more</span>
+      <div class="legend"><span>0%</span><span class="ramp"></span><span>10% or more</span><span style="color:#ff3b30">&#9644; project boundary</span><span style="color:#ffd60a">&#9644; leakage buffer</span>
         <span id="mapStats"></span></div></div>
     <div class="panel wide"><h2>One estimate, three ways to compute it</h2>
       <p class="hint" id="estimatorHint"></p>
       <table><thead><tr><th>Method</th><th>What the interval measures</th><th>Median (ha)</th><th>95% interval (ha)</th><th>Range</th></tr></thead>
         <tbody id="estimators"></tbody></table></div>
-    <div class="panel wide"><h2>Avoided emissions against the claim</h2>
+    <div class="panel wide" id="co2panel"><h2>Avoided emissions against the claim</h2>
       <p class="hint">The claim is pro-rated from the start of the monitored window. The carbon density is the one implied by the project's own projection.</p>
       <div class="chart"><canvas id="co2"></canvas></div></div>
   </div>
   <p class="foot" id="foot"></p>
 </main>
 <script>
-let D;
+let ALL;
 try {
-  D = JSON.parse(document.getElementById('data').textContent);
+  ALL = JSON.parse(document.getElementById('data').textContent).projects;
 } catch (e) {
   problem('No data in this page. This file is the template. Run <code>python src/monitor.py</code> and open <code>outputs/monitoring_dashboard.html</code> in a browser.');
   throw e;
 }
-const R = D.records, last = R[R.length - 1];
+if (!ALL.length) problem('No project has monitoring results yet. Run <code>python src/monitor.py</code> first.');
+
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt = (x, d = 0) => x.toLocaleString('en-US', {maximumFractionDigits: d, minimumFractionDigits: d});
 const pct = (x, d = 2) => (100 * x).toFixed(d) + '%';
+const years = (a, b) => (new Date(b) - new Date(a)) / 31557600000;
 
-document.getElementById('sub').textContent =
-  `Alerts from ${D.since} to the week of ${last.week_start}. Data retrieved ${D.retrieved.replace('T', ' ')} UTC.`;
-const P = D.project, years = (a, b) => (new Date(b) - new Date(a)) / 31557600000;
-document.getElementById('banner').innerHTML =
-  `<b>Carbon density:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha, the value implied by the project's own projection ` +
-  `(${fmt(P.projected_ha)} ha avoided = ${fmt(P.projected_tco2e)} tCO2e over 30 years). It is not measured here. ` +
-  `Project: ${P.start} to ${P.end}, claim ${fmt(P.claim_per_year)} tCO2e per year, compared over the monitored window only. ` +
-  `The last ${D.provisional_weeks} weeks are provisional because alerts are confirmed with a delay.`;
+// what has to be torn down when the project is switched
+const charts = [];
+let mapObj = null, timer = null;
+function cleanup() {
+  charts.splice(0).forEach(c => c.destroy());
+  if (mapObj) { mapObj.remove(); mapObj = null; }
+  if (timer) { clearInterval(timer); timer = null; }
+}
 
-const co2 = last.avoided_tco2, claim = last.claim_tco2;
-const cards = [
-  ['Avoided loss', fmt(last.avoided_ha) + ' ha',
-   `95% interval ${fmt(last.avoided_ci_lo)} to ${fmt(last.avoided_ci_hi)} ha`],
-  ['Project loss', pct(last.project_rate), `of ${fmt(D.project_forest_ha)} ha of forest`],
-  ['Comparison parcels', pct(last.parcel_rate_mean), `mean of ${D.snapshot.parcels} parcels`],
-  ['Avoided emissions', fmt(co2) + ' tCO2e', `${pct(co2 / claim, 1)} of the claim over the window (${fmt(claim)})`],
-  ['Avoided-loss rate', fmt(last.avoided_ha / years(D.since, last.week_start)) + ' ha/yr',
-   `measured over the window; the project projects ${fmt(P.projected_ha / years(P.start, P.end))} ha/yr`],
-  ['Project progress', pct(years(P.start, last.week_start) / years(P.start, P.end), 1),
-   `${years(P.start, last.week_start).toFixed(1)} of 30 years since ${P.start}; alerts cover the last ${years(D.since, last.week_start).toFixed(1)}`],
-];
-document.getElementById('cards').innerHTML = cards.map(c =>
-  `<div class="card"><div class="label">${c[0]}</div><div class="value">${c[1]}</div>` +
-  `<div class="note">${c[2]}</div></div>`).join('');
+function render(D, index) {
+  cleanup();
+  const R = D.records, last = R[R.length - 1], P = D.project;
+  const hasCarbon = P.tco2e_per_ha !== null && last.avoided_tco2 !== null;
 
-const labels = R.map(r => r.week_start);
-const base = {pointRadius: 0, borderWidth: 2, tension: 0.15};
-const axes = (yTitle, cb) => ({
-  responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
-  plugins: {legend: {labels: {color: css('--muted'), boxWidth: 14,
-    filter: i => !i.text.startsWith('_')}}},
-  scales: {x: {ticks: {color: css('--muted'), maxTicksLimit: 8}, grid: {display: false}},
-           y: {title: {display: true, text: yTitle, color: css('--muted')},
-               ticks: {color: css('--muted'), callback: cb}, grid: {color: css('--line')}}}});
+  document.getElementById('title').textContent = 'Forest monitoring: ' + P.name;
+  document.getElementById('tabs').innerHTML = ALL.map((p, i) =>
+    `<button class="tab ${i === index ? 'on' : ''}" data-i="${i}">${p.project.name}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => render(ALL[+b.dataset.i], +b.dataset.i));
+  document.getElementById('sub').textContent =
+    `Alerts from ${D.since} to the week of ${last.week_start}. Data retrieved ${D.retrieved.replace('T', ' ')} UTC.`;
 
-new Chart('rates', {type: 'line', data: {labels, datasets: [
-  {label: '_p95', data: R.map(r => 100 * r.parcel_rate_p95), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--band')},
-  {label: '_p05', data: R.map(r => 100 * r.parcel_rate_p05), borderWidth: 0, pointRadius: 0, fill: false},
-  {...base, label: 'Comparison parcels (mean)', data: R.map(r => 100 * r.parcel_rate_mean), borderColor: css('--parcels')},
-  {...base, label: 'Project', data: R.map(r => 100 * r.project_rate), borderColor: css('--project')},
-]}, options: axes('% of forest area lost', v => v + '%')});
+  let banner = !hasCarbon
+    ? `<b>No carbon density for this project yet,</b> so only hectares are shown: no tCO2e figures and no NFT status. `
+    : P.density_source === 'assumption'
+    ? `<b>Carbon density is an assumption:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha (about 150 tC/ha, a typical value for Amazon forest). ` +
+      `It is not from this project, so the tCO2e figures and the NFT status are only as good as that assumption. `
+    : `<b>Carbon density:</b> ${fmt(P.tco2e_per_ha, 1)} tCO2e/ha, the value implied by the project's own projection ` +
+      `(${fmt(P.projected_ha)} ha avoided = ${fmt(P.projected_tco2e)} tCO2e over ${years(P.start, P.end).toFixed(0)} years). It is not measured here. `;
+  banner += `Project: ${P.start} to ${P.end}, claim ${fmt(P.claim_per_year)} tCO2e per year, compared over the monitored window only. ` +
+    `The last ${D.provisional_weeks} weeks are provisional because alerts are confirmed with a delay.`;
+  if (P.registered_ha && Math.abs(D.project_forest_ha / P.registered_ha - 1) > 0.2)
+    banner += ` <b>Area check:</b> the monitored forest is ${fmt(D.project_forest_ha)} ha but the registered project area is ${fmt(P.registered_ha)} ha, so hectare figures are not directly comparable with the claim.`;
+  document.getElementById('banner').innerHTML = banner;
 
-new Chart('avoided', {type: 'line', data: {labels, datasets: [
-  {label: '_hi', data: R.map(r => r.avoided_ci_hi), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--band')},
-  {label: '_lo', data: R.map(r => r.avoided_ci_lo), borderWidth: 0, pointRadius: 0, fill: false},
-  {...base, label: 'Avoided loss (ha)', data: R.map(r => r.avoided_ha), borderColor: css('--parcels')},
-]}, options: axes('hectares', v => fmt(v))});
+  const co2 = last.avoided_tco2, claim = last.claim_tco2;
+  const projectYears = years(P.start, P.end);
+  const cards = [
+    ['Avoided loss', fmt(last.avoided_ha) + ' ha', `95% interval ${fmt(last.avoided_ci_lo)} to ${fmt(last.avoided_ci_hi)} ha`],
+    ['Project loss', pct(last.project_rate), `of ${fmt(D.project_forest_ha)} ha of forest inside the project boundary`],
+    ['Comparison parcels', pct(last.parcel_rate_mean), `mean of ${D.snapshot.parcels} parcels`],
+  ];
+  if (hasCarbon) cards.push(['Avoided emissions', fmt(co2) + ' tCO2e', `${pct(co2 / claim, 1)} of the claim over the window (${fmt(claim)})`]);
+  cards.push(['Avoided-loss rate', fmt(last.avoided_ha / years(D.since, last.week_start)) + ' ha/yr',
+    P.projected_ha ? `measured over the window; the project projects ${fmt(P.projected_ha / projectYears)} ha/yr` : 'measured over the window']);
+  cards.push(['Project progress', pct(years(P.start, last.week_start) / projectYears, 1),
+    `${years(P.start, last.week_start).toFixed(1)} of ${projectYears.toFixed(0)} years since ${P.start}; alerts cover the last ${years(D.since, last.week_start).toFixed(1)}`]);
+  document.getElementById('cards').innerHTML = cards.map(c =>
+    `<div class="card"><div class="label">${c[0]}</div><div class="value">${c[1]}</div><div class="note">${c[2]}</div></div>`).join('');
 
-new Chart('co2', {type: 'line', data: {labels, datasets: [
-  {...base, label: 'Avoided emissions (tCO2)', data: R.map(r => r.avoided_tco2), borderColor: css('--parcels')},
-  {...base, label: 'Claim, pro-rated (' + fmt(P.claim_per_year) + ' tCO2e per year)', data: R.map(r => r.claim_tco2), borderColor: css('--muted'), borderDash: [6, 4]},
-]}, options: axes('tCO2', v => fmt(v))});
+  // NFT status: five levels, the current one highlighted, and what has been published
+  const N = D.nft, st = N.status, pub = N.published || {};
+  if (!st) {
+    document.getElementById('nft').innerHTML = '<h2>NFT status: not available</h2><p class="hint">This project has no carbon density yet, so there is no tCO2e figure to compare with the claim.</p>';
+  } else {
+    const colours = {worst: '#c0392b', bad: '#e67e22', neutral: '#3b82c4', good: '#6fa83a', best: '#1b7f5a'};
+    const range = (lv, i) => i === 0 ? `below ${fmt(100 * lv.upper)}%`
+      : lv.upper === null ? `above ${fmt(100 * st.levels[i - 1].upper)}%`
+      : `${fmt(100 * st.levels[i - 1].upper)} to ${fmt(100 * lv.upper)}%`;
+    const steps = st.levels.map((lv, i) =>
+      `<div class="step ${lv.key === st.key ? 'on' : ''}" style="${lv.key === st.key ? 'background:' + colours[lv.key] : ''}">` +
+      `<b>${lv.label}</b>${range(lv, i)}</div>`).join('');
+    const link = (path, text) => `<a href="${N.explorer}/${path}" target="_blank" rel="noopener">${text}</a>`;
+    const published = pub.token_id === undefined
+      ? `Not published yet. Run <code>python src/publish_nft.py --project ${P.slug} --publish</code> (a dry run is the default).`
+      : `Published: token #${pub.token_id}, shows <b>${(st.levels.find(l => l.key === pub.status) || {}).label || pub.status}</b> ` +
+        `for the week of ${pub.week_start} (${link('tx/' + pub.tx_hash, 'transaction')}, ` +
+        `${link('token/' + N.contract + '?a=' + pub.token_id, 'token')}).`;
+    document.getElementById('nft').innerHTML =
+      `<h2>NFT status: ${st.label}</h2>` +
+      `<p class="hint">Measured avoided emissions are ${pct(st.ratio, 0)} of the claim to date. ` +
+      `Neutral means on track; the bands are fractions of the claim pro-rated over the monitored window.` +
+      `${st.provisional ? ' The newest weeks are provisional.' : ''}</p>` +
+      `<div class="scale">${steps}</div><p class="hint">${published}</p>`;
+  }
 
-// map of cumulative loss by square, with a week slider
-(function () {
-  const S = D.spatial, km = S.cell_km;
+  const labels = R.map(r => r.week_start);
+  const base = {pointRadius: 0, borderWidth: 2, tension: 0.15};
+  const axes = (yTitle, cb) => ({
+    responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+    plugins: {legend: {labels: {color: css('--muted'), boxWidth: 14, filter: i => !i.text.startsWith('_')}}},
+    scales: {x: {ticks: {color: css('--muted'), maxTicksLimit: 8}, grid: {display: false}},
+             y: {title: {display: true, text: yTitle, color: css('--muted')},
+                 ticks: {color: css('--muted'), callback: cb}, grid: {color: css('--line')}}}});
+  const chart = (id, config) => charts.push(new Chart(id, config));
+
+  chart('rates', {type: 'line', data: {labels, datasets: [
+    {label: '_p95', data: R.map(r => 100 * r.parcel_rate_p95), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--band')},
+    {label: '_p05', data: R.map(r => 100 * r.parcel_rate_p05), borderWidth: 0, pointRadius: 0, fill: false},
+    {...base, label: 'Comparison parcels (mean)', data: R.map(r => 100 * r.parcel_rate_mean), borderColor: css('--parcels')},
+    {...base, label: 'Project', data: R.map(r => 100 * r.project_rate), borderColor: css('--project')},
+  ]}, options: axes('% of forest area lost', v => v + '%')});
+
+  chart('avoided', {type: 'line', data: {labels, datasets: [
+    {label: '_hi', data: R.map(r => r.avoided_ci_hi), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: css('--band')},
+    {label: '_lo', data: R.map(r => r.avoided_ci_lo), borderWidth: 0, pointRadius: 0, fill: false},
+    {...base, label: 'Avoided loss (ha)', data: R.map(r => r.avoided_ha), borderColor: css('--parcels')},
+  ]}, options: axes('hectares', v => fmt(v))});
+
+  document.getElementById('co2panel').style.display = hasCarbon ? '' : 'none';
+  if (hasCarbon) chart('co2', {type: 'line', data: {labels, datasets: [
+    {...base, label: 'Avoided emissions (tCO2e)', data: R.map(r => r.avoided_tco2), borderColor: css('--parcels')},
+    {...base, label: 'Claim, pro-rated (' + fmt(P.claim_per_year) + ' tCO2e per year)', data: R.map(r => r.claim_tco2), borderColor: css('--muted'), borderDash: [6, 4]},
+  ]}, options: axes('tCO2e', v => fmt(v))});
+
+  // map of cumulative loss by square, with a week slider and layers that can be switched on and off
+  const S = D.spatial, km = S.cell_km, Z = D.zones || {buffer: [], search: []};
   const map = L.map('map', {scrollWheelZoom: false});
+  mapObj = map;
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {attribution: 'Esri World Imagery', maxZoom: 17}).addTo(map);
   const stops = [[255, 255, 178], [253, 141, 60], [189, 0, 38], [74, 0, 16]];
@@ -187,19 +254,42 @@ new Chart('co2', {type: 'line', data: {labels, datasets: [
     const dlat = km / 2 / 111.0, dlon = dlat / Math.cos(q.lat * Math.PI / 180);
     return [[q.lat - dlat, q.lon - dlon], [q.lat + dlat, q.lon + dlon]];
   };
+  const group = () => L.layerGroup();
+  const g = {search: group(), buffer: group(), protectedAreas: group(), cells: group(), parcels: group(), boundary: group()};
+  const rings = (list, style, target) => list.map(ring => L.polygon(ring, {interactive: false, ...style}).addTo(target));
+  rings(Z.search, {color: '#ff9f0a', weight: 2, dashArray: '6 6', fill: false}, g.search);
+  rings(Z.buffer, {color: '#ffd60a', weight: 2, fillColor: '#ffd60a', fillOpacity: 0.15}, g.buffer);
+  if (D.protected) L.geoJSON(D.protected, {style: {color: '#ff2fd0', weight: 1.5, fillColor: '#ff2fd0', fillOpacity: 0.25},
+    onEachFeature: (f, l) => f.properties.name && l.bindTooltip(f.properties.name)}).addTo(g.protectedAreas);
   const layers = [];
   const add = (items, parcel) => items.forEach(q => {
     const r = L.rectangle(box(q), parcel
       ? {color: '#4cc9f0', weight: 1.2, fillOpacity: 0.95}
-      : {color: '#222', weight: 0.4, fillOpacity: 0.8}).addTo(map);
+      : {color: '#222', weight: 0.4, fillOpacity: 0.8}).addTo(parcel ? g.parcels : g.cells);
     r.bindTooltip('', {sticky: true});
     layers.push({r, q, parcel});
   });
   add(S.cells, false); add(S.parcels, true);
-  const all = S.cells.concat(S.parcels);
-  map.fitBounds(L.latLngBounds(all.map(q => [q.lat, q.lon])).pad(0.1));
+  const outline = rings(D.boundary || [], {color: '#ff3b30', weight: 2, fillColor: '#ff3b30', fillOpacity: 0.12}, g.boundary);
+
+  // the layer menu: everything except the search limit and protected areas starts switched on
+  const overlays = {};
+  overlays['Project boundary'] = g.boundary;
+  overlays[`Leakage buffer (${Z.buffer_km || 10} km, nothing is chosen inside)`] = g.buffer;
+  overlays[`Search limit (${Z.search_km || 50} km)`] = g.search;
+  if (D.protected) overlays['Protected areas'] = g.protectedAreas;
+  overlays['Project grid cells'] = g.cells;
+  overlays['Comparison parcels'] = g.parcels;
+  [g.buffer, g.cells, g.parcels, g.boundary].forEach(layer => layer.addTo(map));
+  L.control.layers(null, overlays, {collapsed: false}).addTo(map);
+  map.on('overlayadd', () => outline.forEach(o => o.bringToFront()));   // keep the outline readable on top
+
+  const bounds = L.latLngBounds(S.cells.concat(S.parcels).map(q => [q.lat, q.lon]));
+  outline.forEach(o => bounds.extend(o.getBounds()));
+  map.fitBounds(bounds.pad(0.1));
   const slider = document.getElementById('week'), label = document.getElementById('weekLabel');
-  slider.max = R.length - 1; slider.value = R.length - 1;
+  const playButton = document.getElementById('play');
+  slider.max = R.length - 1; slider.value = R.length - 1; playButton.textContent = 'Play';
   const draw = i => {
     layers.forEach(({r, q, parcel}) => {
       const rate = q.cum[i] / q.forest_ha;
@@ -208,55 +298,56 @@ new Chart('co2', {type: 'line', data: {labels, datasets: [
         `<br>${(100 * rate).toFixed(2)}% of forest lost (${fmt(q.cum[i], 1)} ha)`);
     });
     label.textContent = 'Week of ' + R[i].week_start + (R[i].provisional ? ' (provisional)' : '');
-    document.getElementById('mapStats').textContent =
-      `Project ${pct(R[i].project_rate)} | parcels ${pct(R[i].parcel_rate_mean)}`;
+    document.getElementById('mapStats').textContent = `Project ${pct(R[i].project_rate)} | parcels ${pct(R[i].parcel_rate_mean)}`;
   };
   slider.oninput = () => draw(+slider.value);
-  let timer = null;
-  document.getElementById('play').onclick = function () {
-    if (timer) { clearInterval(timer); timer = null; this.textContent = 'Play'; return; }
+  playButton.onclick = () => {
+    if (timer) { clearInterval(timer); timer = null; playButton.textContent = 'Play'; return; }
     if (+slider.value >= +slider.max) slider.value = 0;
-    this.textContent = 'Pause';
+    playButton.textContent = 'Pause';
     timer = setInterval(() => {
       slider.value = +slider.value + 2;
-      if (+slider.value >= +slider.max) { slider.value = slider.max; clearInterval(timer); timer = null; document.getElementById('play').textContent = 'Play'; }
+      if (+slider.value >= +slider.max) { slider.value = slider.max; clearInterval(timer); timer = null; playButton.textContent = 'Play'; }
       draw(+slider.value);
     }, 60);
   };
   draw(+slider.value);
-})();
 
-// estimator comparison at the newest week that has one
-const withEst = R.filter(r => r.estimators), e = withEst.length ? withEst[withEst.length - 1] : null;
-const body = document.getElementById('estimators');
-if (e) {
-  const est = e.estimators;
-  document.getElementById('estimatorHint').textContent =
-    `Week of ${e.week_start}. These intervals are not comparable as uncertainty. The bootstrap shows how much the answer ` +
-    `depends on which parcels were chosen (the real uncertainty). Monte Carlo and quantum amplitude estimation (a noiseless ` +
-    `simulation) show only the numerical error of computing the mean by sampling with ${fmt(est.evaluations)} evaluations; ` +
-    `exact averaging has none. Amplitude estimation is about ${fmt(((est.mc.interval[1]-est.mc.interval[0])/(est.qae.interval[1]-est.qae.interval[0])), 1)} ` +
-    `times tighter than Monte Carlo at the same budget, which is the quadratic speedup, but it improves a number that was never the bottleneck.`;
-  const rows = [
-    ['Classical: exact mean + bootstrap over the parcels', 'Which parcels were chosen', e.avoided_ha, [e.avoided_ci_lo, e.avoided_ci_hi], '--boot'],
-    ['Classical Monte Carlo, ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.mc.median, est.mc.interval, '--mc'],
-    ['Amplitude estimation (simulated), ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.qae.median, est.qae.interval, '--qae'],
-  ];
-  const lo = Math.min(...rows.map(r => r[3][0])), hi = Math.max(...rows.map(r => r[3][1]));
-  const span = Math.max(hi - lo, 1e-9), at = x => (100 * (x - lo) / span).toFixed(2);
-  body.innerHTML = rows.map(r =>
-    `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${fmt(r[2], 1)}</td>` +
-    `<td class="num">${fmt(r[3][0], 1)} to ${fmt(r[3][1], 1)}</td>` +
-    `<td><div class="track"><div class="bar" style="left:${at(r[3][0])}%;width:${Math.max(at(r[3][1]) - at(r[3][0]), 0.8)}%;background:${css(r[4])}"></div>` +
-    `<div class="tick" style="left:${at(e.avoided_ha)}%"></div></div></td></tr>`).join('');
-} else {
-  document.getElementById('estimatorHint').textContent = 'Run without --qae-every 0 to compare the estimators.';
+  // estimator comparison at the newest week that has one
+  const withEst = R.filter(r => r.estimators), e = withEst.length ? withEst[withEst.length - 1] : null;
+  const body = document.getElementById('estimators');
+  if (e) {
+    const est = e.estimators;
+    document.getElementById('estimatorHint').textContent =
+      `Week of ${e.week_start}. These intervals are not comparable as uncertainty. The bootstrap shows how much the answer ` +
+      `depends on which parcels were chosen (the real uncertainty). Monte Carlo and quantum amplitude estimation (a noiseless ` +
+      `simulation) show only the numerical error of computing the mean by sampling with ${fmt(est.evaluations)} evaluations; ` +
+      `exact averaging has none. Amplitude estimation is about ${fmt(((est.mc.interval[1] - est.mc.interval[0]) / (est.qae.interval[1] - est.qae.interval[0])), 1)} ` +
+      `times tighter than Monte Carlo at the same budget, which is the quadratic speedup, but it improves a number that was never the bottleneck.`;
+    const rows = [
+      ['Classical: exact mean + bootstrap over the parcels', 'Which parcels were chosen', e.avoided_ha, [e.avoided_ci_lo, e.avoided_ci_hi], '--boot'],
+      ['Classical Monte Carlo, ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.mc.median, est.mc.interval, '--mc'],
+      ['Amplitude estimation (simulated), ' + fmt(est.evaluations) + ' evaluations', 'Sampling error only', est.qae.median, est.qae.interval, '--qae'],
+    ];
+    const lo = Math.min(...rows.map(r => r[3][0])), hi = Math.max(...rows.map(r => r[3][1]));
+    const span = Math.max(hi - lo, 1e-9), at = x => (100 * (x - lo) / span).toFixed(2);
+    body.innerHTML = rows.map(r =>
+      `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${fmt(r[2], 1)}</td>` +
+      `<td class="num">${fmt(r[3][0], 1)} to ${fmt(r[3][1], 1)}</td>` +
+      `<td><div class="track"><div class="bar" style="left:${at(r[3][0])}%;width:${Math.max(at(r[3][1]) - at(r[3][0]), 0.8)}%;background:${css(r[4])}"></div>` +
+      `<div class="tick" style="left:${at(e.avoided_ha)}%"></div></div></td></tr>`).join('');
+  } else {
+    body.innerHTML = '';
+    document.getElementById('estimatorHint').textContent = 'Run without --qae-every 0 to compare the estimators.';
+  }
+
+  document.getElementById('foot').innerHTML =
+    `Snapshot SHA-256 <code>${D.snapshot.sha256}</code> (created ${D.snapshot.created_at}, ` +
+    `${D.snapshot.parcels} parcels, ${D.snapshot.project_cells} project cells). ` +
+    'Source: RADD radar forest-disturbance alerts, confirmed class. Black tick: exact mean.';
 }
 
-document.getElementById('foot').innerHTML =
-  `Snapshot SHA-256 <code>${D.snapshot.sha256}</code> (created ${D.snapshot.created_at}, ` +
-  `${D.snapshot.parcels} parcels, ${D.snapshot.project_cells} project cells). ` +
-  'Source: RADD radar forest-disturbance alerts, confirmed class. Black tick: exact mean.';
+if (ALL.length) render(ALL[0], 0);
 </script>
 </body>
 </html>

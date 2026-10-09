@@ -110,13 +110,23 @@ def yearly_loss_rate(loss, forest, years):
     return (loss or 0) / forest / years * 100 if forest else float('nan')
 
 
+def boundary_geometry(coordinates):
+    """Earth Engine geometry for one ring of (lon, lat) pairs or for a list of rings."""
+    if isinstance(coordinates[0][0], (int, float)):                # a single ring
+        return ee.Geometry.Polygon(coordinates)
+    if len(coordinates) == 1:
+        return ee.Geometry.Polygon(coordinates[0])
+    return ee.Geometry.MultiPolygon([[ring] for ring in coordinates])
+
+
 # ------------------------------------------------------------------ main class
 class FindParcels:
     def __init__(self, coordinates, start_year, buffer_m=10000, search_radius_m=50000,
                  cell_size_m=2000, forest_threshold=30, min_forest_share=0.5,
                  trend_years=5, min_spacing_km=6.0, n_nearest=3):
         """
-        coordinates       project boundary as (lon, lat) pairs
+        coordinates       project boundary: one ring of (lon, lat) pairs, or a list of rings
+                          (one per polygon) for a boundary made of several parts
         start_year        project start year; only earlier information is used
         buffer_m          leakage buffer: no candidate within this distance of the project
         search_radius_m   candidates are searched up to this distance from the project
@@ -137,7 +147,7 @@ class FindParcels:
         self.min_spacing_km = min_spacing_km
         self.n_nearest = n_nearest
 
-        self.geometry = ee.Geometry.Polygon(coordinates)
+        self.geometry = boundary_geometry(coordinates)
         self.exclusion_zone = self.geometry.buffer(buffer_m)
         self.search_region = self.geometry.buffer(search_radius_m).difference(self.exclusion_zone)
 

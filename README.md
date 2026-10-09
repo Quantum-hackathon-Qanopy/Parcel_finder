@@ -13,12 +13,13 @@ The repository finds "twin forests" to a reference project: unprotected land tha
 3. [Pipeline](#pipeline)
 4. [How the pieces work](#how-the-pieces-work)
 5. [Quantum results and an honest assessment](#quantum-results-and-an-honest-assessment)
-6. [Design principles](#design-principles)
-7. [Open research questions](#open-research-questions)
-8. [Current status](#current-status)
-9. [Running the code](#running-the-code)
-10. [Limitations](#limitations)
-11. [Roadmap](#roadmap)
+6. [NFT status](#nft-status)
+7. [Design principles](#design-principles)
+8. [Open research questions](#open-research-questions)
+9. [Current status](#current-status)
+10. [Running the code](#running-the-code)
+11. [Limitations](#limitations)
+12. [Roadmap](#roadmap)
 
 ## The problem
 
@@ -60,7 +61,7 @@ flowchart LR
 | 6. Freeze | Save the chosen parcels and settings as a hashed snapshot so they cannot be swapped later | Built (`src/snapshot.py`, local SHA-256; publishing the hash is what would make it binding) |
 | 7. Measure | Satellite forest loss for the project and the chosen parcels since project start, monitored weekly | Built (`src/monitor.py`, RADD radar alerts, from 2020 by default; see [Monitoring](#monitoring)) |
 | 8. Estimate | Quantum amplitude estimation gives the expected loss without the project, with a confidence interval; convert to tons of CO2 and compare with the project's claim | Not built. A simulated QAE demo shows the theoretical speedup (see [Quantum results](#quantum-results-and-an-honest-assessment)) |
-| 9. Certificate | Record the result on-chain, publicly and permanently | Not built |
+| 9. Certificate | Record the result on-chain, publicly and permanently | Built as a status NFT on Base Sepolia (`src/publish_nft.py`, see [NFT status](#nft-status)); token 0 was minted on 2026-10-09 with status Worst |
 
 ## How the pieces work
 
@@ -127,16 +128,16 @@ Two things to watch when testing:
 
 ### Monitoring
 
-Built in `src/snapshot.py` and `src/monitor.py`. Run `python src/snapshot.py` once after the selection to freeze the chosen parcels, the project cells, the settings and the boundary file's hash into `outputs/snapshot.json`. It refuses to overwrite an existing snapshot without `--force`, and `python src/snapshot.py --verify` checks it later. `python src/monitor.py` then:
+Built in `src/snapshot.py` and `src/monitor.py`. Run `python src/snapshot.py` once after the selection to freeze the chosen parcels, the project cells, the settings and the boundary file's hash into `outputs/<project>/snapshot.json`. It refuses to overwrite an existing snapshot without `--force`, and `python src/snapshot.py --verify` checks it later. `python src/monitor.py` then:
 
 1. loads the snapshot and stops if its hash no longer matches;
-2. downloads weekly RADD radar alerts (confirmed class, 10 m) for each of the project's grid cells and each comparison parcel, counting losses from 2020-01-01 by default, the start of RADD alerts in this area (`--since` changes it);
+2. downloads weekly RADD radar alerts (confirmed class, 10 m) for each comparison parcel and for the project itself, measured inside its exact boundary against the forest inside it at the start (Hansen canopy of at least 30%); the project's grid cells are only used for the map. Losses are counted from the later of 2020-01-01 (the start of RADD alerts) and the project start (`--since` changes it);
 3. computes cumulative loss rates and the avoided loss `(mean parcel rate - project rate) x project forest area`, with a bootstrap interval over the parcels.;
 4. every 4 weeks (`--qae-every`) also runs a Monte Carlo and a simulated quantum amplitude estimate of the mean parcel loss rate with the same number of evaluations, and shows them next to the bootstrap;
 5. converts to tons of CO2e and compares with the claim, pro-rated over the monitored window. The claim (1,004,626 tCO2e per year, 14 December 2017 to 2047) and the dates are the team's project facts (`PROJECT_START`, `PROJECT_END`, `CLAIMED_TCO2E_PER_YEAR` in `monitor.py`; check them against the project documents). The carbon density is derived from the project's own projection of 82,994.27 ha of avoided deforestation equal to 30,138,794 tCO2e over 30 years: 363.1 tCO2e per hectare, or 99.0 tC per hectare (`CARBON_TCO2E_PER_HA`). It is implied by the project's estimate, not measured here, and may already be net of deductions;
-6. writes `outputs/monitoring_log.csv` (one row per week), appends a run record (time, snapshot hash, latest week, estimate) to `outputs/monitoring_runs.csv`, and rebuilds `outputs/monitoring_dashboard.html` from the template `src/monitor_dashboard.html`.
+6. writes `outputs/<project>/monitoring_log.csv` (one row per week), appends a run record (time, snapshot hash, latest week, estimate) to `outputs/monitoring_runs.csv`, and rebuilds `outputs/monitoring_dashboard.html` from the template `src/monitor_dashboard.html`.
 
-The newest 8 weeks are marked provisional because alerts are confirmed with a delay. A weekly schedule on Windows is one `schtasks` command (see the header of `monitor.py`). Replacing provisional alert rows with the annual Hansen data is not built.
+The dashboard map draws the project boundary in red over the grid squares, the 10 km leakage buffer in yellow, and can also show the 50 km search limit and the protected areas near the project (from the cache that `selection_map.py` writes); a layer menu on the map switches each of these, the grid cells and the comparison parcels on and off. The boundary and zones are lightly simplified for the page. The newest 8 weeks are marked provisional because alerts are confirmed with a delay. A weekly schedule on Windows is one `schtasks` command (see the header of `monitor.py`). Replacing provisional alert rows with the annual Hansen data is not built.
 
 **Reading the estimator comparison.** The bootstrap interval shows how much the answer depends on which parcels were chosen, which is the real uncertainty. The Monte Carlo and QAE intervals show only the numerical error of computing the mean by sampling with a fixed number of evaluations; exact averaging has none. At 26,200 evaluations the simulated QAE is about 11 times tighter than Monte Carlo, consistent with the quadratic speedup, but it narrows a number that was never the bottleneck. The quantum part is a noiseless simulation, not a hardware run.
 
@@ -215,6 +216,16 @@ Quantum amplitude estimation has a proven quadratic speedup for estimating an av
 
 "Classical solvers already do the selection well. We wrote it as a quantum-ready optimisation problem, ran it on IBM's 156-qubit Fez processor, where on one 8-parcel problem it found the optimal 3-of-8 set about 71% of the time among valid answers (random: 1.8%); we also report that this problem was favourable, since on random 8-parcel problems from our current data QAOA does not find the optimum even in a perfect simulation; and benchmarked it honestly against classical methods, which win at every size we can run. Amplitude estimation has a proven quadratic speedup for the estimation step, which we show in simulation; today's 0.3% gate error removes it, and certification-grade precision would need gates roughly 3,000 times better."
 
+## NFT status
+
+The monitoring result is published to a status NFT (contract `0x386f0C26891AdAb4041AB547Dd59D5C8d7B2A492` on Base Sepolia, from the `qanopynft` repository). There are five statuses: Worst, Bad, Neutral (on track), Good and Best, set by how the measured avoided emissions compare with the claim pro-rated over the monitored window: below 50%, 50 to 90%, 90 to 110%, 110 to 150% and above 150%. At the latest run ALGAR is at about 31% of the claim to date, which is **Worst**, and Projeto Agroflorestal is at about 123% (**Good**, on an assumed carbon density). The published token for ALGAR was minted when the figure was 28%; republish to update it. The dashboard shows the status and, once published, the token and transaction.
+
+`python src/publish_nft.py` is a dry run; `--publish` uploads the metadata to IPFS through Pinata and mints the token the first time, then updates the same token. Credentials are read from the `.env` file in the repository root (git ignores it) or from environment variables, never from code: the contract owner's private key (`PRIVATE_KEY`), the RPC endpoint (`SEPOLIA_RPC`) and Pinata (`PINATA_JWT`, or `PINATA_API_KEY` with `PINATA_SECRET`). `--inline` skips Pinata and stores the metadata inside the token URI (a larger transaction, about 1.4 million gas against about 185,000). `python src/run_pipeline.py` runs the whole pipeline with publishing as the last step (see Running the code). Details are in `nft/README.md`. Things to know:
+
+- The status rests on an estimate with wide uncertainty, and the measured value is well below the claim largely because of the limitations listed below (matching, missing 2018 and 2019, a few high-loss parcels), so Worst is not a finding about the project. The 50% to 150% bands are a choice and are not validated.
+- The newest weeks are provisional, so the status can change between runs.
+- The first publish ran on 2026-10-09: token 0 was minted on Base Sepolia with the status Worst (transaction `0xe744cb4e38b27db3d748fe9a89b813600c5fcc09a45b9c0f5d609000f0e0e9cb`, metadata `ipfs://QmRNSG4Toe9nYr5MyVD46whjnM7sDxJfEXg8mfG3nptKrC`, pinned on Pinata and read back through a gateway). Basescan read the metadata (name, all 15 properties, description) but showed no image for the token. The image links themselves work (the five images are normal JPEGs of about 460 by 470 px, served by Pinata's gateway, and announced by several IPFS providers), so the first update (transaction `0x431548ca835963ca406e094c5eddb093912f6a544f2eba312aa71fa0bccb14a4`, new metadata `ipfs://QmNxnGeg7CzQg3bpYFPF2xTyHbDyxtpQSxh7nfrHWERXZ4`) changed the metadata's `image` from the `ipfs://` link to the HTTPS gateway URL `https://gateway.pinata.cloud/ipfs/<cid>` and kept the `ipfs://` link as `image_ipfs`. About four minutes later Basescan still showed its placeholder; whether that is a cache that needs a metadata refresh, or the explorer not rendering testnet images, was not established. Later publishes update token 0 with `changeTokenURI`, which has now been run once on-chain. Projeto Agroflorestal was published too: token 1 was minted on 2026-10-09 with the status Good (transaction `0xe618bd53da4d9e8452f1fb10105299860655373a6e3b553f14c96155d5903f60`, metadata `ipfs://QmRy44K5RQw6jP9tygvrQ3eZnQibuoE3BtKiDXAWftHfcp`). That status rests on an assumed carbon density (550 tCO2e per hectare), which the token's description and its `Carbon density source` property state; with a different density it could be Bad, Neutral or Best. Basescan reads the properties of both tokens but shows its placeholder instead of the image, even for the token whose metadata used an HTTPS image from the start, so this looks like a limitation of the testnet explorer, not of the images.
+
 ## Design principles
 
 - **No circularity.** Parcels are matched on traits fixed before the outcome period, never on the outcome itself.
@@ -257,12 +268,25 @@ High Moran's I means clustering gives redundant evidence, so diversity should co
 ## Repository layout
 
 ```
-data/       input files (project boundary KML)
-src/        all code: finder, QAOA, selection, the stage map
-outputs/    generated CSV, JSON and HTML files (not tracked by git)
+data/            input files (one boundary KML per project)
+src/             all code: finder, QAOA, selection, the stage map, monitoring
+outputs/<project>/   everything generated for one project (snapshot and NFT state are tracked by git)
+outputs/monitoring_dashboard.html   the one dashboard page, with a tab per project
 ```
 
 Run every script from the repository root, e.g. `python src/example.py`.
+
+### Several projects
+
+`src/config.py` holds a registry of projects (`algar` and `agroflorestal`): name, boundary file, start and end dates, annual claim and, where known, the project's own projection of avoided hectares and tCO2e (the carbon density is derived from it). Every script works on one project, chosen with `--project`, and the default is `algar`:
+
+```bash
+python src/run_pipeline.py --full --project agroflorestal
+```
+
+Each project's results go to `outputs/<project>/`, and the dashboard page collects every project that has monitoring results into tabs. A project without a carbon density still runs and shows hectares, but has no tCO2e figures and no NFT status. Each project gets its own NFT token on the same contract, minted the first time it is published.
+
+The second project is Projeto Agroflorestal (Agroflorestal Novo Horizonte REDD+ AUD, Verra 5295, Prainha, Pará, Brazil): 23,093 ha registered, started 10 October 2021, crediting period to 9 October 2061, estimated average annual reductions of 94,143 tCO2e (the Verra overview figure, the average achieved in the first monitoring period; the description also gives a projected 79,648 tCO2e per year, selectable in `config.py`). Its boundary file matches the registered area (23,103 ha, 92 polygons, repaired because the file contains self-intersections). Neither the overview nor the description gives the projected avoided hectares, so the carbon density cannot be derived the way it was for ALGAR. It uses an **assumption** of 550 tCO2e per hectare (about 150 tC per hectare, a typical value for Amazon forest, not from this project), which the dashboard and the NFT metadata state; replace it in `config.py` once the project's projected avoided hectares are known. The status depends strongly on it: against the claim over the window the status is Bad below about 400 tCO2e per hectare, Neutral from about 400 to 490, Good from about 490 to 670 and Best above that. Monitoring counts losses from the project start (October 2021), not from 2020. The project's loss is measured inside its exact boundary (22,855 ha of forest at the start); an earlier version measured it in the 27 grid cells that are at least 90% inside the boundary, which cover only 47% of the project, and gave an avoided loss of about 480 ha instead of the current figure. In the run to September 2026 the comparison parcels lost about 5.1% of their forest and the project 0.5%, an avoided loss of about 1,040 ha (bootstrap 95% interval 327 to 2,104 ha), about 570,000 tCO2e at the assumed density, 123% of the claim over the window, which is **Good**. Caveats: the ring test shows deforestation around the project rising after the start (about 1.4 to 2.5 times higher in every ring), so background pressure rose everywhere; the distance-to-road feature is capped at 50 km for this remote project and does not discriminate; and 181 of the 200 wanted comparison parcels met the spacing rule. A first Tumaco project (Verra 1389) was tried and dropped: its boundary is made of 22,902 thin fragments, so no 2 km cell is 90% inside it and the finder cannot build project cells.
 
 ## Current status
 
@@ -277,9 +301,13 @@ Run every script from the repository root, e.g. `python src/example.py`.
 | `src/qaoa_hardware.py` | Runs a small QAOA problem (8 qubits) on a noisy IBM chip simulation, or on a real IBM device with `--ibm`, and compares it with the perfect simulation |
 | `src/benchmark.py` | Compares the saved QAOA hardware run with exact, greedy, annealing and random search on the same problem, and shows how the circuit grows with problem size |
 | `src/amplitude_estimation.py` | Quantum amplitude estimation of the comparison set's mean loss, simulated exactly and compared with Monte Carlo, with and without gate noise; shows the quadratic speedup in theory and why it needs error-corrected hardware |
-| `src/snapshot.py` | Freezes the selected parcels, project cells and settings into `outputs/snapshot.json` with a SHA-256 hash, and verifies it |
+| `src/snapshot.py` | Freezes the selected parcels, project cells and settings into `outputs/<project>/snapshot.json` with a SHA-256 hash, and verifies it |
 | `src/monitor.py` | Weekly monitoring: downloads RADD alerts for the project and the frozen parcels, estimates avoided loss with a bootstrap, Monte Carlo and simulated QAE, writes a log and `outputs/monitoring_dashboard.html` (template: `src/monitor_dashboard.html`) |
-| `src/selection_map.py` | One interactive map with a button per stage (project, forest data, leakage buffer, protected areas, search region, candidates, pool, QAOA test problem, selected parcels, matches), saved as `outputs/selection_map.html`. Forest layers and protected areas need an Earth Engine login; protected areas are then cached in `outputs/protected_areas.geojson` |
+| `src/nft_status.py` | The five NFT statuses, their bands against the claim, and the NFT metadata (no network access) |
+| `src/run_pipeline.py` | Runs the pipeline in order (search, select, snapshot, monitor, publish) from one command; publishing only happens with `--publish` |
+| `src/publish_nft.py` | Dry run by default; with `--publish` pins the metadata to IPFS via Pinata and mints or updates the NFT on Base Sepolia |
+| `nft/` | Copy of the contract source, its ABI, and notes on the contract, statuses and images (from the `qanopynft` repository) |
+| `src/selection_map.py` | One interactive map with a button per stage (project, forest data, leakage buffer, protected areas, search region, candidates, pool, QAOA test problem, selected parcels, matches), saved as `outputs/selection_map.html`. Forest layers and protected areas need an Earth Engine login; protected areas are then cached in `outputs/<project>/protected_areas.geojson` |
 
 The candidate search matches only on information from before the project start year, on deforestation drivers (forest at start, pre-start loss and trend, elevation, slope, distance to forest edge, water and roads), with features scaled by their spread across the pool. Protected areas are excluded. The 50-of-200 selection (classical solvers, plus QAOA at 8 qubits on IBM hardware), the staged map, a classical benchmark and a simulated amplitude-estimation demo are built. The frozen snapshot, weekly alert monitoring and a first avoided-loss estimate (with placeholder carbon and claim values) are also built. Not yet implemented: annual-data replacement of provisional rows, a real CO2 conversion, and the certificate. The Earth Engine parts were written without being run against Earth Engine; test before relying on them.
 
@@ -299,18 +327,22 @@ pip install -r requirements.txt
 python src/example.py
 ```
 
-It prints a short quality report and saves the result files in `outputs/`. Earth Engine work runs on Google's servers, so large search areas can take a while or hit usage limits.
+It prints a short quality report and saves the result files in `outputs/<project>/`. Earth Engine work runs on Google's servers, so large search areas can take a while or hit usage limits.
 
 Then, from the repository root:
 
 ```bash
 python src/select_parcels.py     # pick K parcels (classical + small QAOA on a simulator)
-python src/selection_map.py      # staged map: outputs/selection_map.html
+python src/selection_map.py      # staged map: outputs/<project>/selection_map.html
 python src/qaoa_hardware.py      # noisy simulation of a 156-qubit IBM chip, no account needed
 python src/benchmark.py          # QAOA run against classical methods, plus circuit growth
 python src/amplitude_estimation.py   # simulated amplitude estimation, prints and plots the scaling
 python src/snapshot.py           # freeze the selected parcels (once; --verify to check)
 python src/monitor.py            # weekly: download alerts, update the log, open the dashboard
+python src/publish_nft.py        # dry run of publishing the status NFT (--publish needs keys, see nft/README.md)
+python src/run_pipeline.py       # the weekly pipeline in one command: monitor, then a dry run of the NFT publish
+python src/run_pipeline.py --publish   # ...and publish the status (a public transaction)
+python src/run_pipeline.py --full      # first run: also candidate search, selection and snapshot
 ```
 
 `monitor.py` needs an Earth Engine login for the download and takes a few minutes; `--offline` reuses the last download. Run it again each week, or schedule it.
@@ -326,7 +358,7 @@ To run QAOA on a real IBM device, save your IBM Quantum credentials once with `Q
 - **Alerts are noisy.** They can include fire, degradation and cloud artefacts.
 - **Quantum scale.** Current quantum hardware cannot run QAOA beyond about 8 to 10 qubits usefully, and cannot hold a 200-variable problem. On the sizes that fit, classical methods match or beat QAOA (see [Quantum results](#quantum-results-and-an-honest-assessment)), so the quantum part is a proof of concept, not a requirement.
 - **Hardware results rest on one small problem.** The IBM run uses one 8-parcel draw, 3 jobs per method, and the angles were tuned on a perfect simulator. Results will differ across problems, devices and days.
-- **Monitoring window and the first estimate.** RADD alerts in this area start in early 2020, and the monitoring window runs from 2020-01-01 by default, so the first two years of the project (December 2017 to 2019) are not covered, and the claim is pro-rated over the monitored window only. In the run to mid-September 2026 the comparison parcels lost about 4.6% of their forest and the project 0.56%, an avoided loss of about 5,100 ha (bootstrap 95% interval 2,606 to 8,136 ha), or about 770 ha per year. At 363 tCO2e per hectare that is about 1.9 million tCO2e, about 28% of the claim pro-rated over the window (about 6.8 million tCO2e). The project's own projection is 82,994 ha over 30 years, about 2,770 ha per year or 2.2% of its forest per year, roughly 3.6 times the rate measured against the comparison parcels. The comparison does not reproduce the projection, but that is not a finding about the project: a few parcels with very large losses dominate the parcel average, the matching does not see frontier exposure (first limitation above), the window misses 2018 and 2019, and the projection may rest on assumptions not modelled here. Do not read any of it as a verified result.
+- **Monitoring window and the first estimate (ALGAR).** RADD alerts in this area start in early 2020, and the monitoring window runs from 2020-01-01, so the first two years of the project (December 2017 to 2019) are not covered, and the claim is pro-rated over the monitored window only. In the run to mid-September 2026 the comparison parcels lost about 4.6% of their forest and the project 0.58% of its 142,318 ha of forest, an avoided loss of about 5,740 ha (bootstrap 95% interval 2,895 to 9,106 ha), or about 860 ha per year. At 363 tCO2e per hectare that is about 2.1 million tCO2e, about 31% of the claim pro-rated over the window (about 6.8 million tCO2e). The project's own projection is 82,994 ha over 30 years, about 2,770 ha per year, roughly 3.2 times the rate measured against the comparison parcels. The comparison does not reproduce the projection, but that is not a finding about the project: a few parcels with very large losses dominate the parcel average, the matching does not see frontier exposure (first limitation above), the window misses 2018 and 2019, and the projection may rest on assumptions not modelled here. Measuring inside the exact boundary instead of in grid cells raised this project's avoided loss by about 12% (the cells had covered 89% of its forest). Do not read any of it as a verified result.
 - **Alerts are limited.** RADD flags disturbance in primary humid tropical forest only, at the confirmed class, and the newest weeks are provisional.
 - **Amplitude estimation is simulated.** It has not run on hardware, and it only pays off if the estimate becomes an average over an expensive model, which is not the current design.
 
@@ -350,4 +382,5 @@ To run QAOA on a real IBM device, save your IBM Quantum credentials once with `Q
 - [x] Project start date, duration, annual claim and the carbon density implied by the project's projection
 - [ ] Monitoring of December 2017 to 2019 (annual Hansen data) so the whole project period is covered, and checking the implied carbon density against the project's carbon stock data
 - [ ] Check whether the parcels' higher loss reflects frontier exposure and a few outliers (for example a placebo test on earlier years)
-- [ ] On-chain certificate that updates with new data
+- [x] Status NFT (Base Sepolia) with five statuses, publisher, dashboard status and `run_pipeline.py`; token 0 minted
+- [ ] Send a first update to the existing token, and decide how often to publish while the estimate is this uncertain
