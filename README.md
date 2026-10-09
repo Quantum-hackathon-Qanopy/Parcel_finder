@@ -208,7 +208,7 @@ Quantum amplitude estimation has a proven quadratic speedup for estimating an av
 
 - With perfect gates the error falls at a log-log slope of -0.88, close to the ideal -1, against -0.51 for Monte Carlo.
 - At today's gate error QAE is worse than Monte Carlo, and 10x better gates only roughly match it. The advantage needs error-corrected hardware.
-- For +/-1% on the mean, Monte Carlo needs about 98,000 evaluations and QAE about 2,000. The deepest QAE circuit would need gate errors around 10^-6, about 3,000 times better than today (approximate constants).
+- For +/-1% on the mean, Monte Carlo needs about 72,000 evaluations and QAE about 1,700. The deepest QAE circuit would need gate errors around 10^-6, about 2,400 times better than today (approximate constants, computed for the current selection, mean loss 0.1215).
 
 **QAE on real hardware (`src/qae_hardware.py`).** Run on IBM's 156-qubit `ibm_fez` on 2026-10-09 (job ids in `outputs/algar/qae_hardware_result.json`, about 15 s of QPU time, error suppression on, readout error corrected on the one-qubit test). Two experiments:
 
@@ -221,7 +221,7 @@ The one-qubit test shows the speedup exists on hardware and that noise takes it 
 
 ### How to describe this
 
-"Classical solvers already do the selection well. We wrote it as a quantum-ready optimisation problem, ran it on IBM's 156-qubit Fez processor, where on one 8-parcel problem it found the optimal 3-of-8 set about 71% of the time among valid answers (random: 1.8%); we also report that this problem was favourable, since on random 8-parcel problems from our current data QAOA does not find the optimum even in a perfect simulation; and benchmarked it honestly against classical methods, which win at every size we can run. Amplitude estimation has a proven quadratic speedup for the estimation step, which we show in simulation; today's 0.3% gate error removes it, and certification-grade precision would need gates roughly 3,000 times better."
+"Classical solvers already do the selection well. We wrote it as a quantum-ready optimisation problem, ran it on IBM's 156-qubit Fez processor, where on one 8-parcel problem it found the optimal 3-of-8 set about 71% of the time among valid answers (random: 1.8%); we also report that this problem was favourable, since on random 8-parcel problems from our current data QAOA does not find the optimum even in a perfect simulation; and benchmarked it honestly against classical methods, which win at every size we can run. Amplitude estimation has a proven quadratic speedup for the estimation step, which we show in simulation; today's 0.3% gate error removes it, and certification-grade precision would need gates roughly 2,400 times better."
 
 ## NFT status
 
