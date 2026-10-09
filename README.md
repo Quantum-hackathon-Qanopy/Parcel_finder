@@ -210,6 +210,13 @@ Quantum amplitude estimation has a proven quadratic speedup for estimating an av
 - At today's gate error QAE is worse than Monte Carlo, and 10x better gates only roughly match it. The advantage needs error-corrected hardware.
 - For +/-1% on the mean, Monte Carlo needs about 98,000 evaluations and QAE about 2,000. The deepest QAE circuit would need gate errors around 10^-6, about 3,000 times better than today (approximate constants).
 
+**QAE on real hardware (`src/qae_hardware.py`).** Run on IBM's 156-qubit `ibm_fez` on 2026-10-09 (job ids in `outputs/algar/qae_hardware_result.json`, about 15 s of QPU time, error suppression on, readout error corrected on the one-qubit test). Two experiments:
+
+- *Small test, one qubit.* A rotation gives P(1) equal to the selected parcels' mean recent loss (scaled 0.1215). Grover powers m = 0 to 64, 1,000 shots each, maximum-likelihood estimate with a fitted signal decay. The measured P(1) follows the ideal curve through m = 64. Against the expected error of Monte Carlo with the same number of calls of A, QAE was lower at 5 of 8 budgets (4.3% vs 8.5% at 1,000 calls, 0.27% vs 4.3% at 4,000, 1.1% vs 2.8% at 9,000, 0.66% vs 1.4% at 35,000, 0.62% vs 1.0% at 68,000), about equal at 2 (18,000 and 133,000) and worse at the largest (0.74% vs 0.53% at 262,000). Each point is one hardware run, so single points are noisy; the two lowest errors come with luck in the draw.
+- *Real circuit, 50 parcels (7 qubits).* After the state preparation (212 two-qubit gates) 27% of the signal is left; after one Grover step (865 gates) and after two (1,481) none is. The full-size circuit cannot be used on today's hardware.
+
+The one-qubit test shows the speedup exists on hardware and that noise takes it away as the circuit gets deeper, which matches the simulated gate-error table above. It is not evidence that QAE helps this project today (see the next paragraph).
+
 **When QAE would pay off.** With all 50 parcel values in hand, their average is one line of code and no sampling is needed. QAE helps only if the estimate is an average over something expensive to sample, for example a stochastic deforestation model run over the project's pixels, with uncertainty in the matching, the loss rates and the spatial spread. Then each evaluation costs real compute time, and the saving is about 20,000 model evaluations instead of 10 million for 0.1% precision. This is a proposed design, not something built or validated. Two cautions: the simulator would have to be written as a reversible quantum circuit, and loading it can cost more gates than the saving buys (our 50-parcel average compiles to only 105 gates, a realistic model would be far larger); and the hardware requirement above still applies.
 
 ### How to describe this
@@ -311,6 +318,7 @@ The second project is Projeto Agroflorestal (Agroflorestal Novo Horizonte REDD+ 
 | `src/qaoa_hardware.py` | Runs a small QAOA problem (8 qubits) on a noisy IBM chip simulation, or on a real IBM device with `--ibm`, and compares it with the perfect simulation |
 | `src/benchmark.py` | Compares the saved QAOA hardware run with exact, greedy, annealing and random search on the same problem, and shows how the circuit grows with problem size |
 | `src/amplitude_estimation.py` | Quantum amplitude estimation of the comparison set's mean loss, simulated exactly and compared with Monte Carlo, with and without gate noise; shows the quadratic speedup in theory and why it needs error-corrected hardware |
+| `src/qae_hardware.py` | The same estimation run on a real IBM device (`--ibm --backend ibm_fez`): a one-qubit test against Monte Carlo and the 50-parcel circuit at low depth; writes `qae_hardware_result.json` |
 | `src/snapshot.py` | Freezes the selected parcels, project cells and settings into `outputs/<project>/snapshot.json` with a SHA-256 hash, and verifies it |
 | `src/monitor.py` | Weekly monitoring: downloads RADD alerts for the project and the frozen parcels, estimates avoided loss with a bootstrap, Monte Carlo and simulated QAE, writes a log and `outputs/monitoring_dashboard.html` (template: `src/monitor_dashboard.html`) |
 | `src/nft_status.py` | The five NFT statuses, their bands against the claim, and the NFT metadata (no network access) |
